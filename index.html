@@ -113,24 +113,12 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
 <div id="authView" class="auth hidden">
   <div class="logo"><div class="mark">📣</div><h1>QNH Social</h1>
   <p class="sub">VNPT QUẢNG NINH — HỆ THỐNG GIÁM SÁT CHIA SẺ TRUYỀN THÔNG</p></div>
-  <div class="tabs"><button id="tabLogin" class="on" type="button">Đăng nhập</button><button id="tabRegister" type="button">Đăng ký</button></div>
   <div class="card">
     <div id="loginForm">
       <label>Email hoặc số điện thoại</label><input id="loginIdent" type="text" autocomplete="username" placeholder="email@vd.com hoặc 0987654321">
       <label>Mật khẩu</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Mật khẩu">
       <div style="margin-top:14px"><button class="btn primary block" id="btnLogin" type="button">Đăng nhập</button></div>
       <button class="linkbtn" id="linkForgot" type="button">Quên mật khẩu?</button>
-    </div>
-    <div id="registerForm" class="hidden">
-      <label>Họ tên</label><input id="regName" type="text" placeholder="Nguyễn Văn A">
-      <label>Email hoặc số điện thoại đăng ký</label><input id="regIdent" type="text" autocomplete="username" placeholder="email@vd.com hoặc 0987654321">
-      <label>Mật khẩu (tối thiểu 6 ký tự)</label><input id="regPass" type="password" autocomplete="new-password" placeholder="Mật khẩu">
-      <h3 style="margin-top:16px">❓ Câu hỏi bí mật <span class="muted" style="font-weight:normal">(tối thiểu 3 câu — dùng để đặt lại mật khẩu khi quên)</span></h3>
-      <p class="muted">Chọn câu gợi ý hoặc tự gõ câu hỏi của anh. Trả lời không phân biệt hoa/thường và dấu.</p>
-      <div id="regQA"></div>
-      <button class="linkbtn" id="btnAddRegQ" type="button">＋ Thêm câu hỏi (tối đa 5)</button>
-      <div style="margin-top:14px"><button class="btn primary block" id="btnRegister" type="button">Đăng ký</button></div>
-      <p class="muted" style="margin-top:10px">Tài khoản đầu tiên đăng ký sẽ tự thành <b>super_admin</b>. Không có tài khoản demo. Sau khi đăng ký, nhờ admin gắn tài khoản với mã nhân viên để nhận nhiệm vụ chia sẻ.</p>
     </div>
     <div id="forgotForm" class="hidden">
       <div id="forgotStep1">
@@ -162,6 +150,32 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
     <p id="authMsg" class="muted" style="margin-top:10px"></p>
   </div>
   <p class="muted" style="text-align:center;font-size:13px">Kết quả chỉ được tính khi link chia sẻ còn tồn tại tại thời điểm chốt tháng.<br>Facebook chặn kiểm tra ẩn danh — hệ thống không tự khẳng định 100% link hợp lệ.</p>
+</div>
+
+<!-- ===== ĐỔI MẬT KHẨU LẦN ĐẦU (tài khoản do admin tạo) ===== -->
+<div id="firstLoginView" class="auth hidden">
+  <div class="logo"><div class="mark">🔐</div><h1>Đổi mật khẩu lần đầu</h1>
+  <p class="sub">TÀI KHOẢN DO QUẢN TRỊ VIÊN TẠO — MẬT KHẨU MẶC ĐỊNH Vnpt@2026</p></div>
+  <div class="card">
+    <p class="muted">Anh phải đổi mật khẩu và đặt câu hỏi bí mật trước khi vào hệ thống.</p>
+    <div id="flStepPass">
+      <label>Mật khẩu hiện tại</label><input id="flOldPass" type="password" autocomplete="current-password" placeholder="Mật khẩu mặc định Vnpt@2026">
+      <p class="muted" id="flPassNote" style="margin-top:4px"></p>
+      <label>Mật khẩu mới (tối thiểu 6 ký tự, khác mật khẩu hiện tại)</label><input id="flNewPass" type="password" autocomplete="new-password" placeholder="Mật khẩu mới">
+      <label>Nhập lại mật khẩu mới</label><input id="flNewPass2" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu mới">
+      <div style="margin-top:14px"><button class="btn primary block" id="btnFirstPass" type="button">Đổi mật khẩu</button></div>
+    </div>
+    <div id="flStepSecQ" class="hidden">
+      <h3 style="margin-top:4px">❓ Câu hỏi bí mật <span class="muted" style="font-weight:normal">(bắt buộc, tối thiểu 3 câu — dùng để đặt lại mật khẩu khi quên)</span></h3>
+      <p class="muted">Chọn câu gợi ý hoặc tự gõ câu hỏi của anh. Trả lời không phân biệt hoa/thường và dấu.</p>
+      <div id="flQA"></div>
+      <button class="linkbtn" id="btnAddFlQ" type="button">＋ Thêm câu hỏi (tối đa 5)</button>
+      <label>Mật khẩu hiện tại (để xác nhận)</label><input id="flSecQPass" type="password" autocomplete="current-password" placeholder="Mật khẩu hiện tại">
+      <div style="margin-top:14px"><button class="btn primary block" id="btnFirstSecQ" type="button">Lưu và vào hệ thống</button></div>
+    </div>
+    <p id="flMsg" class="muted" style="margin-top:10px"></p>
+    <button class="linkbtn" id="btnFirstLogout" type="button">← Đăng xuất</button>
+  </div>
 </div>
 
 <!-- ===== APP ===== -->
@@ -361,9 +375,9 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
       <h2>🛡️ Quản trị</h2>
       <div class="card"><h3>Thống kê hệ thống</h3><div id="adminStats" class="muted">—</div></div>
       <div class="card"><h3>Tạo tài khoản</h3>
-        <p class="muted">Tài khoản gắn với 1 CBCNV (để nhận nhiệm vụ) hoặc là admin thuần (để trống mã CBCNV). Không có mật khẩu demo.</p>
+        <p class="muted">Tài khoản CBCNV/Lãnh đạo <b>bắt buộc gắn mã nhân viên</b> (để nhận nhiệm vụ); admin thuần để trống mã. Mật khẩu mặc định là <b>Vnpt@2026</b> — người dùng phải đổi mật khẩu và đặt câu hỏi bí mật ở lần đăng nhập đầu tiên.</p>
         <div class="row"><div><label>Email hoặc SĐT *</label><input id="admIdent" placeholder="email@vd.com hoặc 0987654321"></div><div><label>Họ tên</label><input id="admName"></div></div>
-        <div class="row"><div><label>Mật khẩu ban đầu *</label><input id="admPass" type="password" placeholder="Tối thiểu 6 ký tự"></div><div><label>Vai trò</label><select id="admRole"><option value="employee">CBCNV</option><option value="leader">Lãnh đạo đơn vị</option><option value="admin">Admin truyền thông</option><option value="sub_admin">Sub Admin</option><option value="super_admin">Super admin</option></select></div></div>
+        <div class="row"><div><label>Mật khẩu ban đầu *</label><input id="admPass" type="password" value="Vnpt@2026" placeholder="Tối thiểu 6 ký tự"></div><div><label>Vai trò</label><select id="admRole"><option value="employee">CBCNV</option><option value="leader">Lãnh đạo đơn vị</option><option value="admin">Admin truyền thông</option><option value="sub_admin">Sub Admin</option><option value="super_admin">Super admin</option></select></div></div>
         <label>Mã nhân viên gắn với tài khoản (để trống = admin thuần)</label><input id="admEmpCode" placeholder="VD: NV001">
         <div style="margin-top:12px"><button class="btn primary block" id="btnAddUser" type="button">Tạo tài khoản</button></div>
       </div>
@@ -570,6 +584,7 @@ function go(view){
   window.scrollTo(0,0);
 }
 function showApp(on){
+  show("firstLoginView",false);
   show("authView",!on);show("appView",on);
   $("setupWarn").classList.toggle("hidden",!!apiBase());
   if(on){
@@ -596,9 +611,7 @@ function readQA(container){
 }
 function setAuthMsg(m){$("authMsg").textContent=m||"";}
 function switchAuthTab(which){
-  $("tabLogin").classList.toggle("on",which==="login");
-  $("tabRegister").classList.toggle("on",which==="register");
-  show("loginForm",which==="login");show("registerForm",which==="register");
+  show("loginForm",which==="login");
   show("forgotForm",which==="forgot");show("resetForm",which==="reset");
   setAuthMsg("");
 }
@@ -607,16 +620,12 @@ async function doLogin(){
   try{
     const d=await api("/api/auth/login",{method:"POST",body:{identifier:$("loginIdent").value.trim(),password:$("loginPass").value}});
     localStorage.setItem(LS_TOKEN,d.token);localStorage.setItem(LS_USER,JSON.stringify(d.user));
-    state.user=d.user;showApp(true);toast("Đăng nhập thành công");
-  }catch(e){setAuthMsg(e.message);}
-}
-async function doRegister(){
-  try{
-    const qs=readQA($("regQA"));
-    const d=await api("/api/auth/register",{method:"POST",body:{identifier:$("regIdent").value.trim(),password:$("regPass").value,full_name:$("regName").value.trim(),questions:qs}});
-    localStorage.setItem(LS_TOKEN,d.token);localStorage.setItem(LS_USER,JSON.stringify(d.user));
-    state.user=d.user;showApp(true);
-    toast(d.user.role==="super_admin"?"Đăng ký thành công — anh là super_admin đầu tiên":"Đăng ký thành công");
+    state.user=d.user;
+    // Tài khoản do admin tạo (must_change_password=1) hoặc chưa có câu hỏi
+    // bí mật (đóng tab giữa chừng ở lần đầu) thì chặn ở màn hình đổi MK
+    // lần đầu, không cho vào hệ thống.
+    if(d.user.must_change_password||!d.has_security_questions){showFirstLogin(d.user,d.has_security_questions);}
+    else{showApp(true);toast("Đăng nhập thành công");}
   }catch(e){setAuthMsg(e.message);}
 }
 async function doForgotQ(){
@@ -644,6 +653,60 @@ async function doReset(){
     await api("/api/auth/reset-password",{method:"POST",body:{token:resetToken,password:$("resetPass").value}});
     toast("Đặt lại mật khẩu thành công — đăng nhập lại");switchAuthTab("login");
   }catch(e){setAuthMsg(e.message);}
+}
+
+/* ================= Đổi mật khẩu lần đầu (tài khoản do admin tạo) ============ */
+// Tài khoản do admin tạo có must_change_password=1 và chưa có câu hỏi bí mật.
+// Màn hình này chặn toàn bộ giao diện chính cho đến khi làm xong:
+//   (A) đổi mật khẩu mặc định (chỉ khi cờ must_change_password=1),
+//   (B) đặt tối thiểu 3 câu hỏi bí mật (chỉ khi tài khoản chưa có).
+// Trường hợp đóng tab giữa chừng (đã đổi MK nhưng chưa đặt câu hỏi): lần
+// đăng nhập sau vẫn bị chặn ở bước (B) vì has_security_questions=false.
+// Token vẫn dùng được trong suốt luồng này: verifyToken chỉ kiểm tra chữ ký
+// JWT + hạn, không tra bảng sessions (sessions chỉ để thu hồi khi cần).
+function showFirstLogin(user,hasQ){
+  state.user=user;
+  state.firstNeedsPass=!!user.must_change_password;
+  state.firstNeedsSecQ=!hasQ;
+  state.firstNewPass="";
+  show("authView",false);show("appView",false);show("firstLoginView",true);
+  $("flMsg").textContent="";
+  $("flOldPass").value="";$("flNewPass").value="";$("flNewPass2").value="";$("flSecQPass").value="";
+  if(state.firstNeedsPass){
+    show("flStepPass",true);show("flStepSecQ",false);
+    $("flPassNote").textContent="Mật khẩu hiện tại của anh là mật khẩu mặc định do quản trị viên đặt (Vnpt@2026).";
+  }else{
+    show("flStepPass",false);show("flStepSecQ",true);initFlQA();
+  }
+}
+function initFlQA(){
+  const box=$("flQA");box.innerHTML="";
+  qaRow(box,SEC_Q_SUGGEST[0],"");qaRow(box,SEC_Q_SUGGEST[3],"");qaRow(box,SEC_Q_SUGGEST[1],"");
+}
+async function doFirstPass(){
+  try{
+    const oldP=$("flOldPass").value, np=$("flNewPass").value, np2=$("flNewPass2").value;
+    if(!oldP||!np||np.length<6){$("flMsg").textContent="Mật khẩu mới tối thiểu 6 ký tự.";return;}
+    if(np!==np2){$("flMsg").textContent="Hai lần nhập mật khẩu mới không khớp.";return;}
+    if(np===oldP){$("flMsg").textContent="Mật khẩu mới phải khác mật khẩu hiện tại.";return;}
+    await api("/api/me/password",{method:"POST",body:{old_password:oldP,new_password:np}});
+    state.firstNewPass=np;
+    $("flSecQPass").value=np; // mật khẩu hiện tại lúc này là mật khẩu mới
+    if(state.firstNeedsSecQ){show("flStepPass",false);show("flStepSecQ",true);initFlQA();$("flMsg").textContent="Đã đổi mật khẩu — giờ đặt câu hỏi bí mật.";}
+    else finishFirstLogin();
+  }catch(e){$("flMsg").textContent=e.message;}
+}
+async function doFirstSecQ(){
+  try{
+    const qs=readQA($("flQA"));
+    await api("/api/me/security-questions",{method:"POST",body:{questions:qs,current_password:$("flSecQPass").value}});
+    finishFirstLogin();
+  }catch(e){$("flMsg").textContent=e.message;}
+}
+function finishFirstLogin(){
+  const u=Object.assign({},state.user,{must_change_password:0});
+  state.user=u;localStorage.setItem(LS_USER,JSON.stringify(u));
+  show("firstLoginView",false);showApp(true);toast("Chào mừng anh đến với QNH Social");
 }
 
 /* ================= Dùng chung ================= */
@@ -1194,7 +1257,8 @@ async function loadAdmin(){
 }
 // Sửa tài khoản có sẵn: đổi họ tên / vai trò / gắn hoặc gỡ mã nhân viên.
 // Đây là cách xử lý lỗi "Tài khoản chưa gắn với CBCNV nào" ở mục Nhiệm vụ:
-// CBCNV tự đăng ký xong, admin vào đây bấm "Gắn mã NV" rồi nhập mã NV của họ.
+// tài khoản đã tạo nhưng chưa gắn mã, admin vào đây bấm "Gắn mã NV" rồi
+// nhập mã NV của họ (nút này giữ lại để sửa khi cần).
 function openEditUser(id){
   const x=(state.adminUsers||[]).find(function(u){return u.id===id;});
   if(!x)return;
@@ -1243,20 +1307,20 @@ async function loadAudit(){
 
 /* ================= Gắn sự kiện ================= */
 function wire(){
-  $("tabLogin").onclick=function(){switchAuthTab("login");};
-  $("tabRegister").onclick=function(){switchAuthTab("register");};
   $("linkForgot").onclick=function(){switchAuthTab("forgot");show("forgotStep1",true);show("forgotStep2",false);};
   $("linkBackLogin").onclick=function(){switchAuthTab("login");};
   $("btnLogin").onclick=doLogin;
-  $("btnRegister").onclick=doRegister;
   $("btnForgotQ").onclick=doForgotQ;
   $("btnForgotVerify").onclick=doForgotVerify;
   $("btnReset").onclick=doReset;
   $("loginPass").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
-  $("btnAddRegQ").onclick=function(){
-    if(document.querySelectorAll("#regQA .qa-row").length>=5){toast("Tối đa 5 câu hỏi");return;}
-    qaRow($("regQA"));
+  $("btnFirstPass").onclick=doFirstPass;
+  $("btnFirstSecQ").onclick=doFirstSecQ;
+  $("btnAddFlQ").onclick=function(){
+    if(document.querySelectorAll("#flQA .qa-row").length>=5){toast("Tối đa 5 câu hỏi");return;}
+    qaRow($("flQA"));
   };
+  $("btnFirstLogout").onclick=function(){logout(false);};
   $("btnAddSecQ").onclick=function(){
     if(document.querySelectorAll("#secQA .qa-row").length>=5){toast("Tối đa 5 câu hỏi");return;}
     qaRow($("secQA"));
@@ -1396,16 +1460,18 @@ function wire(){
   };
   $("btnAddUser").onclick=async function(){
     try{
+      const role=$("admRole").value;
       let empId=null;
       const code=$("admEmpCode").value.trim();
+      if((role==="employee"||role==="leader")&&!code){toast("Tài khoản CBCNV/Lãnh đạo đơn vị phải gắn mã nhân viên — nhập mã NV.");return;}
       if(code){
         const d=await api("/api/employees?q="+encodeURIComponent(code));
         const found=(d.employees||[]).find(function(e){return e.code===code;});
         if(!found){toast("Không tìm thấy CBCNV có mã "+code);return;}
         empId=found.id;
       }
-      await api("/api/admin/users",{method:"POST",body:{identifier:$("admIdent").value.trim(),password:$("admPass").value,full_name:$("admName").value.trim(),role:$("admRole").value,employee_id:empId}});
-      toast("Đã tạo tài khoản");$("admIdent").value="";$("admPass").value="";loadAdmin();
+      await api("/api/admin/users",{method:"POST",body:{identifier:$("admIdent").value.trim(),password:$("admPass").value,full_name:$("admName").value.trim(),role:role,employee_id:empId}});
+      toast("Đã tạo tài khoản — mật khẩu mặc định Vnpt@2026");$("admIdent").value="";$("admPass").value="Vnpt@2026";loadAdmin();
     }catch(e){toast(e.message);}
   };
   $("btnCloseUserModal").onclick=function(){show("userModal",false);};
@@ -1416,11 +1482,23 @@ function wire(){
 /* ================= Khởi động ================= */
 document.addEventListener("DOMContentLoaded",function(){
   wire();
-  const box=$("regQA");
-  qaRow(box,SEC_Q_SUGGEST[0],"");qaRow(box,SEC_Q_SUGGEST[3],"");qaRow(box,SEC_Q_SUGGEST[1],"");
   if(!apiBase()){$("setupWarn").classList.remove("hidden");}
   const u=me();
-  if(u&&token()){state.user=u;showApp(true);}
+  if(u&&token()){
+    state.user=u;
+    // Kiểm tra lại cờ bắt buộc đổi MK + câu hỏi bí mật phía server trước
+    // khi vào app (trường hợp admin vừa đặt lại MK, hoặc user đóng tab
+    // giữa chừng ở lần đầu). Lỗi mạng thì dùng cache, không chặn oan.
+    api("/api/me").then(function(d){
+      state.user=d.user;localStorage.setItem(LS_USER,JSON.stringify(d.user));
+      if(d.user.must_change_password||!d.has_security_questions)showFirstLogin(d.user,d.has_security_questions);
+      else showApp(true);
+    }).catch(function(){
+      if(!token()){showApp(false);}
+      else if(u.must_change_password){showFirstLogin(u,false);}
+      else showApp(true);
+    });
+  }
   else{showApp(false);}
 });
 </script>

@@ -18,7 +18,10 @@
 --     (đề cương 2 mục 10, 21).
 --   * Đăng nhập: cột users.email là ĐỊNH DANH (email hoặc SĐT VN chuẩn hóa
 --     0xxxxxxxxx), như MyMoney đã chốt ngày 09/11/2026.
---   * KHÔNG seed mật khẩu cứng. User đăng ký đầu tiên thành super_admin.
+--   * KHÔNG seed mật khẩu cứng. Không có đăng ký tự do — chỉ admin tạo tài
+--     khoản (mật khẩu mặc định Vnpt@2026, bắt buộc đổi ở lần đăng nhập đầu
+--     tiên, cờ users.must_change_password). Endpoint register chỉ bootstrap
+--     tài khoản super_admin đầu tiên khi bảng users trống.
 -- ============================================================================
 PRAGMA foreign_keys = ON;
 
@@ -29,6 +32,8 @@ PRAGMA foreign_keys = ON;
 --       leader (lãnh đạo đơn vị) | employee (CBCNV).
 -- employee_id: tài khoản gắn với 1 CBCNV (role employee/leader). Admin thuần
 -- để NULL. Một CBCNV chỉ gắn tối đa 1 tài khoản (UNIQUE).
+-- must_change_password: 1 = tài khoản do admin tạo/reset, bắt buộc đổi mật
+-- khẩu + đặt câu hỏi bí mật ở lần đăng nhập đầu tiên; 0 = tài khoản thường.
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   email TEXT NOT NULL UNIQUE COLLATE NOCASE,   -- email hoặc SĐT VN (định danh)
@@ -38,6 +43,7 @@ CREATE TABLE IF NOT EXISTS users (
     CHECK (role IN ('super_admin','admin','sub_admin','leader','employee')),
   employee_id INTEGER UNIQUE REFERENCES employees(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','locked')),
+  must_change_password INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );

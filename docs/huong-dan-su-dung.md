@@ -2,7 +2,7 @@
 ### Hệ thống giám sát chia sẻ bài viết truyền thông — VNPT Quảng Ninh
 
 > Trang web: https://dhkdvtqn.github.io/qnh-social/
-> Phiên bản tài liệu: v2 (09/11/2026) — cập nhật theo đợt bổ sung: vai trò Sub Admin, nhóm "Chuyên viên", sửa/xóa CBCNV, sửa/xóa đơn vị (chọn đơn vị cha), gắn mã NV cho tài khoản có sẵn.
+> Phiên bản tài liệu: v3 (09/11/2026) — cập nhật theo đợt thay đổi: **bỏ đăng ký tự do, chỉ admin tạo tài khoản, mật khẩu mặc định Vnpt@2026, bắt buộc đổi mật khẩu + đặt câu hỏi bí mật ở lần đăng nhập đầu tiên**. Các thay đổi trước: v2 — vai trò Sub Admin, nhóm "Chuyên viên", sửa/xóa CBCNV, sửa/xóa đơn vị (chọn đơn vị cha), gắn mã NV cho tài khoản có sẵn.
 > Mỗi lần hệ thống thay đổi, tài liệu này được cập nhật lại. Bản PDF đi kèm được tạo từ chính file này.
 
 ---
@@ -17,26 +17,32 @@ Hệ thống **không** quét Facebook để chấm công từng người. Kết
 
 ---
 
-## 2. Đăng ký và đăng nhập
+## 2. Tài khoản — admin tạo, đăng nhập lần đầu
 
-### 2.1. Đăng ký tài khoản mới
+### 2.1. Tài khoản do admin tạo — không có đăng ký tự do
 
-1. Mở trang web, bấm **Đăng ký**.
-2. Nhập **email hoặc số điện thoại** (đây sẽ là tài khoản đăng nhập; số điện thoại nhập dạng 0987654321).
-3. Đặt **mật khẩu** (tối thiểu 6 ký tự).
-4. Nhập **tối thiểu 3 câu hỏi bí mật và câu trả lời** (tối đa 5 câu). Chọn câu gợi ý có sẵn hoặc tự gõ câu hỏi của mình.
-5. Bấm **Đăng ký**.
+Hệ thống **không có chức năng đăng ký tài khoản mới** trên màn hình đăng nhập. Mọi tài khoản đều do admin (Super Admin / Admin truyền thông / Sub Admin) tạo trong **Quản trị → Người dùng** (xem mục 6.3).
 
-> ⚠️ **Tài khoản đăng ký đầu tiên** của hệ thống tự thành **Super Admin**. Các tài khoản sau mặc định là CBCNV, chờ admin gắn mã nhân viên (xem mục 6.3).
+Khi tạo tài khoản, admin nhập email hoặc số điện thoại (đây sẽ là tài khoản đăng nhập), họ tên, vai trò và **mã nhân viên gắn kèm** — tài khoản CBCNV/Lãnh đạo **bắt buộc** gắn mã NV ngay lúc tạo nên không còn bước gắn mã riêng; admin thuần thì để trống mã. Mật khẩu mặc định là **`Vnpt@2026`** (đã điền sẵn trong form tạo tài khoản).
 
-### 2.2. Quên mật khẩu
+### 2.2. Lần đăng nhập đầu tiên — bắt buộc đổi mật khẩu và đặt câu hỏi bí mật
+
+1. Mở trang web, đăng nhập bằng email/SĐT và mật khẩu mặc định `Vnpt@2026` mà admin đã báo cho bạn.
+2. Hệ thống hiện màn hình **Đổi mật khẩu lần đầu** và **không cho vào hệ thống** cho đến khi làm xong:
+   - **Bước 1 — Đổi mật khẩu:** nhập mật khẩu hiện tại (`Vnpt@2026`), nhập mật khẩu mới 2 lần (tối thiểu 6 ký tự, **khác mật khẩu hiện tại**), bấm **Đổi mật khẩu**.
+   - **Bước 2 — Đặt câu hỏi bí mật:** nhập **tối thiểu 3 câu hỏi bí mật và câu trả lời** (tối đa 5 câu; chọn câu gợi ý có sẵn hoặc tự gõ), nhập mật khẩu hiện tại (là mật khẩu mới vừa đổi) để xác nhận, bấm **Lưu và vào hệ thống**.
+3. Sau đó bạn vào được hệ thống bình thường.
+
+> Nếu bạn đóng trình duyệt giữa chừng (đã đổi mật khẩu nhưng chưa đặt câu hỏi bí mật), lần đăng nhập sau hệ thống vẫn bắt đặt câu hỏi bí mật xong mới cho vào.
+
+### 2.3. Quên mật khẩu
 
 1. Ở màn hình đăng nhập, bấm **Quên mật khẩu**.
 2. Nhập email/số điện thoại đã đăng ký.
 3. Trả lời **đúng hết** các câu hỏi bí mật đã đặt.
 4. Đặt mật khẩu mới.
 
-Hệ thống **không gửi email** để lấy lại mật khẩu. Vì vậy hãy ghi nhớ câu hỏi bí mật của mình. Muốn đổi câu hỏi bí mật: vào **Cài đặt → Câu hỏi bí mật** (cần nhập lại mật khẩu hiện tại).
+Hệ thống **không gửi email** để lấy lại mật khẩu. Vì vậy hãy ghi nhớ câu hỏi bí mật của mình. Sau khi đặt lại mật khẩu bằng cách này thì **không** bị bắt đổi lại lần nữa. Muốn đổi câu hỏi bí mật: vào **Cài đặt → Câu hỏi bí mật** (cần nhập lại mật khẩu hiện tại). Nếu bạn chưa từng đặt câu hỏi bí mật (tài khoản cũ) thì nhờ admin đặt lại mật khẩu giúp.
 
 ---
 
@@ -83,7 +89,7 @@ Mục **Nhiệm vụ của tôi** hiện tỷ lệ hoàn thành của bạn tron
 
 Lỗi này nghĩa là **tài khoản đăng nhập của bạn chưa được gắn với hồ sơ CBCNV** trong danh sách nhân sự, nên hệ thống không biết bạn là ai để giao nhiệm vụ.
 
-**Cách xử lý (dành cho admin):** xem mục 6.3 — admin vào **Quản trị → Người dùng**, bấm **🔗 Gắn mã NV** ở dòng tài khoản của bạn, nhập **mã nhân viên** của bạn (VD: NV001), bấm Lưu. Bạn đăng nhập lại là thấy nhiệm vụ ngay, không cần đăng ký tài khoản mới.
+**Cách xử lý (dành cho admin):** xem mục 6.3 — admin vào **Quản trị → Người dùng**, bấm **🔗 Gắn mã NV** ở dòng tài khoản của bạn, nhập **mã nhân viên** của bạn (VD: NV001), bấm Lưu. Bạn đăng nhập lại là thấy nhiệm vụ ngay, không cần tạo lại tài khoản.
 
 ---
 
@@ -158,13 +164,13 @@ Vào **Quản trị → Đơn vị**.
 
 Vào **Quản trị → Người dùng**. Danh sách hiện: họ tên, email/SĐT, vai trò, **CBCNV gắn kèm** (mã NV + họ tên, hoặc "Chưa gắn"), trạng thái.
 
-**Tạo tài khoản mới:** bấm **Tạo tài khoản**, nhập email/SĐT, mật khẩu ban đầu, họ tên, chọn vai trò, nhập **mã nhân viên gắn với tài khoản** (để trống = tài khoản admin thuần, không gắn CBCNV nào). Tài khoản mới phải **đặt 3 câu hỏi bí mật** ở lần đăng nhập đầu tiên (mục Cài đặt → Câu hỏi bí mật).
+**Tạo tài khoản mới:** bấm **Tạo tài khoản**, nhập email/SĐT, họ tên, chọn vai trò, nhập **mã nhân viên gắn với tài khoản** — tài khoản CBCNV/Lãnh đạo **bắt buộc** gắn mã ngay lúc tạo (hệ thống chặn tạo nếu thiếu mã); admin thuần để trống mã. Mật khẩu mặc định là **`Vnpt@2026`** (đã điền sẵn trong ô mật khẩu, admin sửa được nếu muốn đặt mật khẩu khác). Bấm **Tạo tài khoản** rồi báo cho người dùng mật khẩu mặc định. Người dùng đăng nhập lần đầu sẽ bị bắt đổi mật khẩu và đặt 3 câu hỏi bí mật (xem mục 2.2) rồi mới vào được hệ thống.
 
 **Cấp quyền Sub Admin (chỉ Super Admin làm được):** bấm **🔗 Gắn mã NV** (nút sửa tài khoản) ở dòng người dùng → chọn vai trò **Sub Admin** → Lưu. Chỉ Super Admin thấy được lựa chọn này; Admin/Sub Admin không cấp được quyền này cho người khác. Muốn thu hồi: làm tương tự, chuyển vai trò về CBCNV hoặc Admin truyền thông.
 
 **Gắn mã nhân viên cho tài khoản có sẵn:** bấm **🔗 Gắn mã NV** ở dòng tài khoản → nhập **mã nhân viên** (VD: NV001) → Lưu. Hệ thống kiểm tra mã có tồn tại trong danh sách CBCNV không; **một mã NV chỉ gắn cho tối đa 1 tài khoản** — nếu mã đã gắn cho tài khoản khác, hệ thống báo lỗi. Muốn gỡ gắn: để trống ô mã NV rồi Lưu. Sau khi gắn, người dùng đăng nhập lại sẽ thấy nhiệm vụ của mình.
 
-**Đặt lại mật khẩu / Khóa / Mở khóa:** bấm **Đặt lại MK** (đặt mật khẩu mới cho người dùng) hoặc **Khóa/Mở khóa** ở dòng tài khoản. Sub Admin không được đặt lại mật khẩu hay khóa tài khoản Super Admin.
+**Đặt lại mật khẩu / Khóa / Mở khóa:** bấm **Đặt lại MK** (đặt mật khẩu mới cho người dùng — người dùng sẽ phải đổi lại mật khẩu ở lần đăng nhập tiếp theo) hoặc **Khóa/Mở khóa** ở dòng tài khoản. Sub Admin không được đặt lại mật khẩu hay khóa tài khoản Super Admin.
 
 ---
 
@@ -187,7 +193,8 @@ Vào **Quản trị → Người dùng**. Danh sách hiện: họ tên, email/S�
 | Link mãi ở "Chờ xác minh" | Facebook hạn chế truy cập tự động — admin kiểm tra thủ công, xem mục 5.3 |
 | Không chốt tháng được | Còn trường hợp "Chờ xác minh" chưa xử lý — xử lý hết rồi mới bấm Chốt chính thức (mục 5.3) |
 | Nhập Excel báo thiếu cột | Bảng đối chiếu chưa ánh xạ cột Mã nhân viên — ánh xạ lại cột Mã nhân viên và Họ tên rồi import |
-| Quên mật khẩu | Dùng chức năng Quên mật khẩu, trả lời đúng hết câu hỏi bí mật (mục 2.2) |
+| Đăng nhập xong bị bắt đổi mật khẩu + đặt câu hỏi bí mật | Đúng quy trình với tài khoản do admin tạo — làm theo mục 2.2, không phải lỗi |
+| Quên mật khẩu | Dùng chức năng Quên mật khẩu, trả lời đúng hết câu hỏi bí mật (mục 2.3) |
 
 ---
 

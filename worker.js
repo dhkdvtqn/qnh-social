@@ -11,6 +11,10 @@
 //   Mật khẩu PBKDF2-SHA256 + salt riêng. Reset token chỉ lưu SHA-256 hash.
 //   Đăng nhập bằng email HOẶC SĐT VN (lưu vào users.email làm định danh);
 //   quên mật khẩu bằng câu hỏi bí mật (tối thiểu 3, tối đa 5), KHÔNG gửi email.
+//   KHÔNG có đăng ký tự do: chỉ admin tạo tài khoản (mật khẩu mặc định
+//   Vnpt@2026, bắt buộc đổi mật khẩu + đặt câu hỏi bí mật ở lần đăng nhập
+//   đầu tiên, cờ users.must_change_password). Endpoint register chỉ còn
+//   dùng để bootstrap tài khoản super_admin đầu tiên khi bảng users trống.
 //
 // GIỚI HẠN XÁC MINH FACEBOOK — ĐỌC KỸ (đề cương 2, cuối mục 28):
 //   Facebook chặn fetch ẩn danh: URL bài thường trả về trang đăng nhập,
@@ -287,7 +291,7 @@ async function requireAuth(request, env) {
   const payload = await verifyToken(env, m[1]);
   if (!payload) return null;
   const user = await env.DB.prepare(
-    "SELECT id, email, full_name, role, employee_id, status FROM users WHERE id = ?"
+    "SELECT id, email, full_name, role, employee_id, status, must_change_password FROM users WHERE id = ?"
   ).bind(payload.sub).first();
   if (!user || user.status !== "active") return null;
   return user;
@@ -308,7 +312,7 @@ function canAssignRole(caller, target, newRole) {
   return true;
 }
 function publicUser(u) {
-  return { id: u.id, email: u.email, full_name: u.full_name || "", role: u.role, employee_id: u.employee_id || null };
+  return { id: u.id, email: u.email, full_name: u.full_name || "", role: u.role, employee_id: u.employee_id || null, must_change_password: u.must_change_password ? 1 : 0 };
 }
 async function myEmployee(env, user) {
   if (!user.employee_id) return null;
@@ -410,10 +414,27 @@ async function ensureSubAdminRole(env) {
     await env.DB.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('migrated_sub_admin_role_v1','1')").run();
   } catch (e) { console.error("ensureSubAdminRole failed:", e); }
 }
+// Migrate: thêm cột users.must_change_password (đổi 09/11/2026 — bỏ đăng ký
+// tự do, chỉ admin tạo tài khoản, bắt buộc đổi mật khẩu lần đầu).
+// D1 thật đã chạy schema cũ nên ALTER TABLE 1 lần, có cờ settings để không
+// chạy lại. Tài khoản đã có (kể cả super_admin hiện tại) nhận DEFAULT 0,
+// tức KHÔNG bị bắt đổi mật khẩu.
+async function ensureMustChangePassword(env) {
+  try {
+    const flag = await env.DB.prepare("SELECT value FROM settings WHERE key='migrated_must_change_password_v1'").first();
+    if (flag) return;
+    const row = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").first();
+    if (row && row.sql && !row.sql.includes("must_change_password")) {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0").run();
+    }
+    await env.DB.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('migrated_must_change_password_v1','1')").run();
+  } catch (e) { console.error("ensureMustChangePassword failed:", e); }
+}
 // Bảng nào D1 cũ chưa có thì tự tạo (đề phòng schema.sql chưa chạy đủ).
 async function ensureSchema(env) {
   await ensureSecurityQuestions(env);
   await ensureSubAdminRole(env);
+  await ensureMustChangePassword(env);
   try {
     await env.DB.prepare(`CREATE TABLE IF NOT EXISTS monthly_locks (
       month TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'locked',
@@ -476,6 +497,11 @@ export default {
 
     // ================= AUTH (công khai) — đúng mẫu MyMoney =================
     if (path === "/api/auth/register" && request.method === "POST") {
+      // KHÔNG cho tự đăng ký (đổi 09/11/2026): chỉ admin tạo tài khoản.
+      // Endpoint này chỉ còn dùng để bootstrap tài khoản super_admin đầu
+      // tiên khi database mới chưa có user nào.
+      const uc = await env.DB.prepare("SELECT COUNT(*) AS c FROM users").first();
+      if ((uc?.c || 0) > 0) return err(env, "Hệ thống không cho tự đăng ký — liên hệ quản trị viên để được tạo tài khoản", 403);
       const b = await readBody(request);
       const identifier = normIdentifier(b.identifier ?? b.email);
       if (!identifier) return err(env, "Nhập email hoặc số điện thoại hợp lệ", 422);
@@ -511,7 +537,8 @@ export default {
       const token = await signToken(env, { sub: user.id, exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS });
       await env.DB.prepare("INSERT INTO sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)")
         .bind(user.id, await sha256Hex(token), new Date(Date.now() + TOKEN_TTL_SECONDS * 1000).toISOString()).run();
-      return json(env, { ok: true, user: publicUser(user), token });
+      const sq = await env.DB.prepare("SELECT COUNT(*) AS c FROM security_questions WHERE user_id = ?").bind(user.id).first();
+      return json(env, { ok: true, user: publicUser(user), token, has_security_questions: (sq?.c || 0) > 0 });
     }
     if (path === "/api/auth/forgot-questions" && request.method === "POST") {
       const b = await readBody(request);
@@ -568,7 +595,8 @@ export default {
 
     if (path === "/api/me" && request.method === "GET") {
       const emp = await myEmployee(env, me);
-      return json(env, { ok: true, user: publicUser(me), employee: emp || null });
+      const sq = await env.DB.prepare("SELECT COUNT(*) AS c FROM security_questions WHERE user_id = ?").bind(uid).first();
+      return json(env, { ok: true, user: publicUser(me), employee: emp || null, has_security_questions: (sq?.c || 0) > 0 });
     }
     if (path === "/api/auth/logout" && request.method === "POST") {
       const m = (request.headers.get("Authorization") || "").match(/^Bearer\s+(.+)$/i);
@@ -587,7 +615,9 @@ export default {
       const full = await env.DB.prepare("SELECT password_hash FROM users WHERE id = ?").bind(uid).first();
       if (!full || !(await verifyPassword(String(b.old_password), full.password_hash))) return err(env, "Mật khẩu hiện tại không đúng", 401);
       await env.DB.batch([
-        env.DB.prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?").bind(await hashPassword(String(b.new_password)), nowIso(), uid),
+        // Đổi mật khẩu thành công thì xóa cờ bắt buộc đổi (cờ chỉ đặt lại
+        // khi admin tạo tài khoản mới hoặc đặt lại mật khẩu cho user).
+        env.DB.prepare("UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = ? WHERE id = ?").bind(await hashPassword(String(b.new_password)), nowIso(), uid),
         env.DB.prepare("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL").bind(nowIso(), uid),
       ]);
       return json(env, { ok: true });
@@ -1679,8 +1709,10 @@ export default {
         ).all()).results || [];
         return json(env, { ok: true, users: rows });
       }
-      // Admin tạo tài khoản (gắn CBCNV + vai trò). Mật khẩu do admin đặt lần đầu,
-      // user tự đổi sau khi đăng nhập. Không có mật khẩu demo/seed.
+      // Admin tạo tài khoản (gắn CBCNV + vai trò). Mật khẩu do admin đặt
+      // (mặc định Vnpt@2026, đã điền sẵn ở form), tài khoản mới bắt buộc
+      // đổi mật khẩu ở lần đăng nhập đầu tiên (must_change_password=1).
+      // Không có đăng ký tự do, không có mật khẩu demo/seed.
       if (path === "/api/admin/users" && request.method === "POST") {
         const b = await readBody(request);
         const identifier = normIdentifier(b.identifier ?? b.email);
@@ -1688,6 +1720,10 @@ export default {
         if (!b.password || String(b.password).length < 6) return err(env, "Mật khẩu tối thiểu 6 ký tự", 422);
         const role = ["super_admin", "admin", "sub_admin", "leader", "employee"].includes(b.role) ? b.role : "employee";
         if (PRIVILEGED_ROLES.includes(role) && !isSuperAdmin(me)) return err(env, "Chỉ super_admin mới được gán quyền sub_admin / super_admin", 403);
+        // Tài khoản CBCNV/Lãnh đạo bắt buộc gắn mã NV ngay lúc tạo —
+        // admin thuần (admin/sub_admin/super_admin) để trống được.
+        if ((role === "employee" || role === "leader") && !b.employee_id)
+          return err(env, "Tài khoản CBCNV/Lãnh đạo đơn vị phải gắn mã nhân viên — nhập mã NV khi tạo tài khoản", 422);
         const exists = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(identifier).first();
         if (exists) return err(env, "Email hoặc số điện thoại này đã được đăng ký", 409);
         if (b.employee_id) {
@@ -1697,7 +1733,7 @@ export default {
           if (taken) return err(env, "CBCNV này đã gắn với một tài khoản khác", 409);
         }
         const ins = await env.DB.prepare(
-          "INSERT INTO users (email, password_hash, full_name, role, employee_id) VALUES (?, ?, ?, ?, ?)"
+          "INSERT INTO users (email, password_hash, full_name, role, employee_id, must_change_password) VALUES (?, ?, ?, ?, ?, 1)"
         ).bind(identifier, await hashPassword(String(b.password)), String(b.full_name || ""), role, b.employee_id || null).run();
         await audit(env, uid, "create_user", "users:" + ins.meta.last_row_id, "Tạo tài khoản " + identifier + " (" + role + ")", null, { email: identifier, role, employee_id: b.employee_id || null });
         return json(env, { ok: true, id: ins.meta.last_row_id }, 201);
@@ -1721,7 +1757,9 @@ export default {
         if (!target) return err(env, "Không tìm thấy người dùng", 404);
         if (target.role === "super_admin" && !isSuperAdmin(me)) return err(env, "Chỉ super_admin mới được đặt lại mật khẩu cho tài khoản super_admin", 403);
         await env.DB.batch([
-          env.DB.prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?").bind(await hashPassword(String(b.new_password)), nowIso(), target.id),
+          // Admin đặt lại mật khẩu thì user phải đổi lại ở lần đăng nhập
+          // tiếp theo (must_change_password=1).
+          env.DB.prepare("UPDATE users SET password_hash = ?, must_change_password = 1, updated_at = ? WHERE id = ?").bind(await hashPassword(String(b.new_password)), nowIso(), target.id),
           env.DB.prepare("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL").bind(nowIso(), target.id),
           env.DB.prepare("INSERT INTO audit_logs (user_id, action, detail) VALUES (?, ?, ?)").bind(uid, "admin_reset_password", "user_id=" + target.id),
         ]);
