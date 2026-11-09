@@ -1,0 +1,30 @@
+{
+  // QNH Social — cấu hình Worker + D1 binding
+  // Database MỚI: qnh-social-db. Worker MỚI: qnh-social-api.
+  // KHÔNG dùng chung với co-che-duq hay mymoney-db/mymoney-api.
+  // Thay PUT_YOUR_DATABASE_ID_HERE bằng database_id trả về ở bước tạo D1.
+  "name": "qnh-social-api",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-01",
+  "vars": {
+    // Domain frontend. Nếu frontend chạy Cloudflare Pages cùng tài khoản,
+    // có thể để "*" lúc test; khi lên production đặt đúng domain, VD:
+    // "ALLOWED_ORIGIN": "https://qnh-social.pages.dev"
+    // Nếu dùng GitHub Pages: "https://dhkdvtqn.github.io"
+    "ALLOWED_ORIGIN": "*"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "qnh-social-db",
+      "database_id": "PUT_YOUR_DATABASE_ID_HERE"
+    }
+  ],
+  "triggers": {
+    // Cron rà lại link 2-3 ngày/lần (đề cương 2 mục 19):
+    // chạy 02:00 các ngày chẵn trong tháng (giờ UTC). Worker tự kiểm tra
+    // lần rà gần nhất qua settings.last_periodic_check để không rà dày hơn
+    // mức cấu hình (mặc định 3 ngày).
+    "crons": ["0 2 */2 * *"]
+  }
+}
