@@ -306,11 +306,12 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
 
     <section id="view-personnel" class="view hidden">
       <h2>👥 Quản lý nhân sự</h2>
+      <p id="perReadOnlyNote" class="muted hidden">⚠️ Vai trò Admin truyền thông chỉ được xem danh sách — việc thêm/sửa/xóa nhân sự do Super Admin hoặc Sub Admin thực hiện.</p>
       <div class="card">
         <div class="row"><input id="perSearch" type="search" placeholder="Tìm mã NV, họ tên, user đăng nhập, email, SĐT…"><select id="perUnitFilter"><option value="">Tất cả đơn vị</option></select><select id="perStatusFilter"><option value="">Tất cả trạng thái</option><option value="working">Đang làm việc</option><option value="left">Nghỉ</option></select><select id="perAccountFilter"><option value="">Tất cả tài khoản</option><option value="yes">Đã có tài khoản</option><option value="no">Chưa có tài khoản</option></select></div>
         <div style="margin-top:10px"><button class="btn primary" id="btnLoadPersonnel" type="button">Tìm</button></div>
       </div>
-      <div class="card"><h3 id="perFormTitle">Thêm nhân sự mới</h3>
+      <div class="card" id="perFormCard"><h3 id="perFormTitle">Thêm nhân sự mới</h3>
         <p class="muted">Một form tạo đồng thời <b>hồ sơ CBCNV</b> và <b>tài khoản đăng nhập</b> đã gắn mã NV với nhau. Để trống <b>Mã NV</b> nếu chỉ tạo tài khoản admin thuần (không gắn CBCNV). Tài khoản mới dùng mật khẩu mặc định <b>Vnpt@2026</b>, đăng nhập lần đầu phải đổi mật khẩu và đặt câu hỏi bí mật.</p>
         <div class="row"><div><label>Mã nhân viên</label><input id="perCode" placeholder="VD: NV001 — để trống = tài khoản admin thuần"></div><div><label>Họ tên *</label><input id="perName" placeholder="Nguyễn Văn A"></div></div>
         <div class="row"><div><label>User đăng nhập *</label><input id="perLogin" placeholder="email@vnpt.vn hoặc 0987654321"></div><div><label>Mật khẩu</label><input id="perPass" type="password" value="Vnpt@2026" placeholder="Tối thiểu 6 ký tự"></div></div>
@@ -322,7 +323,7 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
         <div class="row" style="margin-top:14px"><button class="btn primary" id="btnSavePerson" type="button">Thêm nhân sự</button><button class="btn hidden" id="btnCancelPerson" type="button">Hủy sửa</button><button class="btn hidden" id="btnResetPersonPass" type="button">🔑 Đặt lại MK về Vnpt@2026</button></div>
         <p id="perFormMsg" class="muted" style="margin-top:8px"></p>
       </div>
-      <div class="card"><h3>Import nhân sự từ Excel/CSV</h3>
+      <div class="card" id="perImportCard"><h3>Import nhân sự từ Excel/CSV</h3>
         <p class="muted">Hỗ trợ .xlsx, .csv. File không cần đúng mẫu: anh ánh xạ cột ở bước dưới. Hệ thống đọc cell theo kiểu dữ liệu gốc (số giữ nguyên, không strip dấu chấm/phẩy ở cell số). Dòng nào có <b>User đăng nhập</b> (hoặc Email/SĐT) hợp lệ sẽ tự tạo luôn tài khoản đăng nhập — mật khẩu lấy theo cột <b>Mật khẩu</b>, để trống thì dùng mặc định Vnpt@2026, bắt buộc đổi ở lần đăng nhập đầu; dòng không có User/Email/SĐT thì chỉ tạo hồ sơ, ghi rõ "Chưa có tài khoản".</p>
         <div class="row"><div><button class="btn" id="btnEmpTemplate" type="button">⬇ Tải file mẫu import</button></div><div><input id="empFile" type="file" accept=".xlsx,.xls,.csv"></div></div>
         <div id="empMap" class="hidden">
@@ -347,8 +348,9 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
 
     <section id="view-units" class="view hidden">
       <h2>Đơn vị</h2>
+      <p id="unitReadOnlyNote" class="muted hidden">⚠️ Vai trò Admin truyền thông chỉ được xem danh sách — việc thêm/sửa/xóa đơn vị do Super Admin hoặc Sub Admin thực hiện.</p>
       <div class="card"><p class="muted">Đơn vị gốc <b>VNPT Quảng Ninh</b> không hiện trong bảng (chỉ làm gốc cây). Thứ tự cố định: Hạ Long, Uông Bí, Cẩm Phả, Tiên Yên, Móng Cái, Bãi Cháy, Đông Triều, Vân Đồn-Cô Tô, Chưa xác định.</p><div id="unitList"></div></div>
-      <div class="card"><h3 id="unitFormTitle">Thêm đơn vị con</h3><label>Tên đơn vị</label><input id="newUnitName" placeholder="VD: Phòng Kỹ thuật"><div class="row"><div><label>Đơn vị cha</label><select id="newUnitParent"></select></div><div><label>Thứ tự hiển thị</label><input id="newUnitSort" type="number" min="0" placeholder="Để trống = cuối"></div></div><div class="row" style="margin-top:12px"><button class="btn primary" id="btnAddUnit" type="button">Thêm đơn vị</button><button class="btn hidden" id="btnCancelUnit" type="button">Hủy sửa</button></div></div>
+      <div class="card" id="unitFormCard"><h3 id="unitFormTitle">Thêm đơn vị con</h3><label>Tên đơn vị</label><input id="newUnitName" placeholder="VD: Phòng Kỹ thuật"><div class="row"><div><label>Đơn vị cha</label><select id="newUnitParent"></select></div><div><label>Thứ tự hiển thị</label><input id="newUnitSort" type="number" min="0" placeholder="Để trống = cuối"></div></div><div class="row" style="margin-top:12px"><button class="btn primary" id="btnAddUnit" type="button">Thêm đơn vị</button><button class="btn hidden" id="btnCancelUnit" type="button">Hủy sửa</button></div></div>
     </section>
 
     <section id="view-notifs" class="view hidden">
@@ -454,6 +456,9 @@ function fmtDate(d){if(!d)return "—";return String(d).slice(0,10).split("-").r
 function monthLabel(m){const p=String(m||"").split("-");return p.length===2?p[1]+"/"+p[0]:m;}
 function isAdminRole(){const u=me();return u&&(u.role==="admin"||u.role==="sub_admin"||u.role==="super_admin");}
 function isSuperAdminRole(){const u=me();return u&&u.role==="super_admin";}
+// Siết quyền Admin truyền thông (09/11/2026): role `admin` chỉ được XEM ở
+// module Quản lý nhân sự và Đơn vị — thêm/sửa/xóa do super_admin/sub_admin.
+function canManagePersonnel(){const u=me();return u&&(u.role==="super_admin"||u.role==="sub_admin");}
 function roleLabel(r){return {super_admin:"Super Admin",admin:"Admin truyền thông",sub_admin:"Sub Admin",leader:"Lãnh đạo đơn vị",employee:"CBCNV"}[r]||r;}
 // Chỉ super_admin được gán/thu hồi Sub Admin và Super admin: khóa (disable)
 // 2 lựa chọn đó trong select vai trò và khóa checkbox SubAdmin khi người
@@ -711,11 +716,14 @@ async function ensureUnits(){
   }catch(e){/* bỏ qua — select đơn vị sẽ trống, thao tác khác vẫn chạy */}
 }
 async function loadUnits(){
+  // Admin truyền thông chỉ xem: ẩn form thêm/sửa đơn vị.
+  const canWrite=canManagePersonnel();
+  show("unitFormCard",canWrite);show("unitReadOnlyNote",!canWrite);
   try{
     await ensureUnits();
     const byId={};(state.unitsAll||[]).forEach(function(u){byId[u.id]=u.name;});
     $("unitList").innerHTML=state.units.map(function(u){
-      return '<div class="list-item"><div class="ic">🏢</div><div class="mid"><div class="t">'+esc(u.name)+'</div><div class="s">ID '+u.id+' · Đơn vị cha: '+esc(byId[u.parent_id]||"—")+' · Thứ tự: '+u.sort_order+'</div></div><div><button class="btn small" type="button" onclick="editUnit('+u.id+')">✏️ Sửa</button> <button class="btn small danger" type="button" onclick="deleteUnit('+u.id+')">🗑 Xóa</button></div></div>';
+      return '<div class="list-item"><div class="ic">🏢</div><div class="mid"><div class="t">'+esc(u.name)+'</div><div class="s">ID '+u.id+' · Đơn vị cha: '+esc(byId[u.parent_id]||"—")+' · Thứ tự: '+u.sort_order+'</div></div>'+(canWrite?'<div><button class="btn small" type="button" onclick="editUnit('+u.id+')">✏️ Sửa</button> <button class="btn small danger" type="button" onclick="deleteUnit('+u.id+')">🗑 Xóa</button></div>':"")+'</div>';
     }).join("")||'<p class="muted">Chưa có đơn vị.</p>';
     loadUnitsIntoSelects();
     fillUnitParentSelect();
@@ -742,6 +750,7 @@ function unitDescendants(id){
   return out;
 }
 function editUnit(id){
+  if(!canManagePersonnel()){toast("Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa đơn vị");return;}
   const u=state.units.find(function(x){return x.id===id;});
   if(!u)return;
   state.editUnitId=id;
@@ -763,6 +772,7 @@ function cancelUnitEdit(){
   show("btnCancelUnit",false);
 }
 async function deleteUnit(id){
+  if(!canManagePersonnel()){toast("Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa đơn vị");return;}
   const u=state.units.find(function(x){return x.id===id;});
   if(!confirm("Xóa đơn vị "+(u?u.name:"")+"? Chỉ xóa được khi đơn vị không còn đơn vị con và không còn CBCNV."))return;
   try{await api("/api/admin/units/"+id,{method:"DELETE"});toast("Đã xóa đơn vị");loadUnits();}
@@ -1115,6 +1125,9 @@ function guessEmpField(h){
 // Nhóm = "Lãnh đạo" -> leader; còn lại -> employee (form tự điền sẵn,
 // admin sửa được tay; checkbox SubAdmin chỉ super_admin tick được).
 async function loadPersonnel(){
+  // Admin truyền thông chỉ xem: ẩn form tạo/sửa + khu vực import.
+  const canWrite=canManagePersonnel();
+  show("perFormCard",canWrite);show("perImportCard",canWrite);show("perReadOnlyNote",!canWrite);
   await ensureUnits();
   loadUnitsIntoSelects();
   const q=$("perSearch").value.trim(), unit=$("perUnitFilter").value||"", status=$("perStatusFilter").value||"", acc=$("perAccountFilter").value||"";
@@ -1130,6 +1143,7 @@ async function loadPersonnel(){
 }
 function renderPersonnelList(){
   const isSA=isSuperAdminRole();
+  const canWrite=canManagePersonnel();
   $("perList").innerHTML=(state.personnel||[]).map(function(r){
     const isSuper=r.user_role==="super_admin";
     const dis=(isSuper&&!isSA)?" disabled":"";
@@ -1141,9 +1155,9 @@ function renderPersonnelList(){
       +'<div class="s">'+esc(r.unit_name||"")+' · '+esc(r.group_name||"")+' · '+esc(r.title||"")+'</div>'
       +'<div class="s">User: '+(r.login_email?'<b>'+esc(r.login_email)+'</b>':"—")+' · '+esc(r.email||"")+' · '+esc(r.phone||"")+(r.facebook_url?' · <a href="'+esc(r.facebook_url)+'" target="_blank" rel="noopener">Facebook</a>':"")+'</div>'
       +'<div class="s">Tài khoản: '+acc+' · '+(r.kind==="pure"?"Tài khoản thuần":(r.status==="working"?"Đang làm việc":"Nghỉ"))+'</div></div>'
-      +'<div><button class="btn small" type="button" onclick="editPerson(\''+r.kind+'\','+(r.kind==="employee"?r.employee_id:r.user_id)+')"'+dis+'>✏️ Sửa</button> '
+      +(canWrite?'<div><button class="btn small" type="button" onclick="editPerson(\''+r.kind+'\','+(r.kind==="employee"?r.employee_id:r.user_id)+')"'+dis+'>✏️ Sửa</button> '
       +(r.user_id?'<button class="btn small" type="button" onclick="togglePersonLock('+r.user_id+','+(r.user_status==="active"?1:0)+')"'+dis+'>'+(r.user_status==="active"?"🔒 Khóa":"🔓 Mở khóa")+'</button> ':"")
-      +'<button class="btn small danger" type="button" onclick="deletePerson(\''+r.kind+'\','+(r.kind==="employee"?r.employee_id:r.user_id)+')"'+dis+'>🗑 Xóa</button></div></div>';
+      +'<button class="btn small danger" type="button" onclick="deletePerson(\''+r.kind+'\','+(r.kind==="employee"?r.employee_id:r.user_id)+')"'+dis+'>🗑 Xóa</button></div>':"")+'</div>';
   }).join("")||'<p class="muted">Không tìm thấy nhân sự nào.</p>';
 }
 // Đồng bộ 2 chiều giữa Nhóm đối tượng / checkbox SubAdmin / select Vai trò:
@@ -1157,6 +1171,7 @@ function syncPersonSubAdmin(){
   $("perSubAdmin").checked=$("perRole").value==="sub_admin";
 }
 function editPerson(kind,id){
+  if(!canManagePersonnel()){toast("Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa nhân sự");return;}
   const r=(state.personnel||[]).find(function(x){return kind==="employee"?x.employee_id===id:x.user_id===id;});
   if(!r)return;
   state.perEdit={kind:kind,employee_id:r.employee_id,user_id:r.user_id};
@@ -1202,6 +1217,7 @@ function cancelPersonEdit(){
   filterRoleSelects();
 }
 async function savePerson(){
+  if(!canManagePersonnel()){toast("Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa nhân sự");return;}
   try{
     const code=$("perCode").value.trim();
     const name=$("perName").value.trim();
@@ -1239,6 +1255,7 @@ async function savePerson(){
   }catch(e){$("perFormMsg").textContent=e.message;toast(e.message);}
 }
 async function deletePerson(kind,id){
+  if(!canManagePersonnel()){toast("Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa nhân sự");return;}
   const r=(state.personnel||[]).find(function(x){return kind==="employee"?x.employee_id===id:x.user_id===id;});
   if(!confirm("Xóa "+(kind==="employee"?"nhân sự ":"tài khoản ")+(r?r.full_name+(r.code?" ("+r.code+")":""):"")+"?"+(kind==="employee"?" Hồ sơ và tài khoản đăng nhập (nếu có) sẽ bị xóa cùng lúc. Chỉ xóa được khi chưa có nhiệm vụ và minh chứng — nếu không, hãy chuyển trạng thái thành 'Nghỉ'.":"")))return;
   try{
@@ -1248,10 +1265,12 @@ async function deletePerson(kind,id){
   }catch(e){toast(e.message);}
 }
 async function togglePersonLock(userId,isActive){
+  if(!canManagePersonnel()){toast("Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa nhân sự");return;}
   try{await api("/api/admin/users/"+userId+(isActive?"/lock":"/unlock"),{method:"POST"});toast("Đã cập nhật");loadPersonnel();}
   catch(e){toast(e.message);}
 }
 async function resetPersonPass(){
+  if(!canManagePersonnel()){toast("Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa nhân sự");return;}
   if(!state.perEdit||!state.perEdit.user_id)return;
   if(!confirm("Đặt lại mật khẩu về mặc định Vnpt@2026? Người dùng sẽ phải đổi lại ở lần đăng nhập tiếp theo."))return;
   try{
@@ -1300,6 +1319,7 @@ function updateDroppedNote(){
     :"Tất cả các cột đều được ánh xạ — không có cột nào bị loại bỏ.";
 }
 async function doEmpImport(){
+  if(!canManagePersonnel()){toast("Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa nhân sự");return;}
   const mapping={};
   document.querySelectorAll("#empMapRows select").forEach(function(s){if(s.value)mapping[Number(s.dataset.col)]=s.value;});
   if(!mapping[0]&&!Object.values(mapping).includes("code")){toast("Cần ánh xạ ít nhất cột Mã nhân viên");return;}
@@ -1501,6 +1521,7 @@ function wire(){
   $("empFile").addEventListener("change",function(){if(this.files[0])parseEmpFile(this.files[0]);});
   $("btnDoEmpImport").onclick=doEmpImport;
   $("btnAddUnit").onclick=async function(){
+    if(!canManagePersonnel()){toast("Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa đơn vị");return;}
     try{
       const body={name:$("newUnitName").value.trim(),parent_id:Number($("newUnitParent").value)||null,sort_order:$("newUnitSort").value===""?undefined:Number($("newUnitSort").value)};
       if(state.editUnitId){

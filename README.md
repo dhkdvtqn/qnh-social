@@ -54,6 +54,11 @@ localStorage (như MyMoney), mọi dữ liệu nghiệp vụ qua Worker → D1.
    user nào — đã có user thì trả 403.
 2. **Phân quyền** — `super_admin` / `admin` truyền thông (tạo chiến dịch/bài,
    giao nhiệm vụ, kiểm tra minh chứng, chốt tháng, xem toàn tỉnh, import/export);
+   **`admin` truyền thông CHỈ XEM ở module Quản lý nhân sự và Đơn vị (siết
+   09/11/2026):** không được thêm/sửa/xóa nhân sự, tài khoản hay đơn vị (kể
+   cả import nhân sự) — server chặn cứng bằng `canManagePersonnel`
+   (chỉ `super_admin`/`sub_admin` qua được), giao diện ẩn form và các nút
+   ghi với role `admin`;
    **`sub_admin`** (phó admin: dùng đúng các quyền như admin — tạo chiến dịch,
    tạo bài + giao nhiệm vụ, module Báo cáo, module Quản lý nhân sự/đơn vị/
    import/export) với 2 NGOẠI LỆ do server chặn cứng: sub_admin KHÔNG được
@@ -289,13 +294,28 @@ qnh-social/
 ├── schema.sql      # D1 schema: 19 bảng + seed 10 đơn vị + settings
 ├── wrangler.jsonc  # Worker qnh-social-api, D1 qnh-social-db, cron 2 ngày/lần
 ├── docs/
-│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v5)
+│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v7)
 └── README.md       # File này
 ```
 
 ## Chưa làm / cần anh Tuấn quyết định
 
-1. **Đợt 5 (09/11/2026, đính chính module Quản lý nhân sự — BẢN NÀY THAY
+1. **Đợt 7 (09/11/2026, siết quyền Admin truyền thông — BẢN MỚI NHẤT):**
+   role `admin` **chỉ được XEM** ở module Quản lý nhân sự và Đơn vị (không
+   được thêm/sửa/xóa nhân sự, tài khoản hay đơn vị, kể cả import) — server
+   chặn cứng bằng `canManagePersonnel` ở mọi endpoint ghi của 2 module,
+   giao diện ẩn form và các nút ghi với role `admin`; sub_admin vẫn quản lý
+   nhân sự/đơn vị đầy đủ. **Đợt này CÓ thay đổi `worker.js`** — cần: (a) đẩy
+   `index.html` + `worker.js` + `README.md` + `docs/huong-dan-su-dung.md`
+   mới lên GitHub; (b) **dán lại `worker.js` mới lên Cloudflare** (Worker
+   `qnh-social-api`) thì các chặn mới mới có hiệu lực; (c) kiểm tra
+   `/api/health` vẫn trả `database: "ok"` sau khi dán (không cần chạy lại
+   schema — không đổi schema). Sau đó kiểm tra thử 1 vòng: đăng nhập bằng
+   tài khoản Admin truyền thông → mở Quản lý nhân sự và Đơn vị (chỉ thấy
+   danh sách, không có form/nút ghi) → thử gọi API thêm/sửa nhân sự hoặc
+   đơn vị bằng tài khoản đó phải trả 403; đăng nhập bằng sub_admin vẫn
+   thêm/sửa/xóa được; admin vẫn tạo được chiến dịch/bài và chốt tháng.
+2. **Đợt 5 (09/11/2026, đính chính module Quản lý nhân sự — BẢN NÀY THAY
    THẾ HOÀN TOÀN bản 2 tab ở đợt 4):** 1 form duy nhất tạo đồng thời hồ sơ
    CBCNV + tài khoản đăng nhập; import tự tạo tài khoản; 1 danh sách thống
    nhất có lọc đơn vị + tìm kiếm không dấu; phân quyền xem số liệu theo
@@ -317,14 +337,14 @@ qnh-social/
    (Các đợt 2+3 trước đó — sub_admin, bỏ đăng ký tự do, mật khẩu mặc định,
    bắt buộc đổi MK + đặt câu hỏi bí mật lần đầu — cũng cần dán worker.js
    1 lần; dán 1 lần kích hoạt tất cả.)
-2. **Xác minh Facebook** (xem mục giới hạn ở trên): oEmbed có thể trả UNKNOWN
+3. **Xác minh Facebook** (xem mục giới hạn ở trên): oEmbed có thể trả UNKNOWN
    với đa số link nếu Meta yêu cầu token — admin sẽ phải xác nhận thủ công
    nhiều trường hợp. Nếu anh có Page access token của Fanpage VNPT Quảng Ninh,
    giai đoạn sau có thể bổ sung xác minh qua Meta Graph API.
-3. **"Link cũ"** (bài chia sẻ ngoài thời gian chiến dịch): hệ thống không lấy
+4. **"Link cũ"** (bài chia sẻ ngoài thời gian chiến dịch): hệ thống không lấy
    được ngày đăng bài tự động nên chỉ gắn cờ khi khai báo trước ngày phát hành
    hoặc sau hạn — admin vẫn phải đối soát tay các trường hợp này.
-4. **Thông báo**: giai đoạn 1 chỉ có thông báo trong web. Zalo OA / email để
+5. **Thông báo**: giai đoạn 1 chỉ có thông báo trong web. Zalo OA / email để
    giai đoạn sau khi có API.
 5. **Ảnh minh chứng** (phương án dự phòng trong đề cương): chưa làm — cần
    Cloudflare R2 nếu anh muốn CBCNV tải ảnh chụp màn hình thay cho link.

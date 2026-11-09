@@ -298,6 +298,12 @@ async function requireAuth(request, env) {
 }
 const isAdmin = (u) => u && (u.role === "admin" || u.role === "sub_admin" || u.role === "super_admin");
 const isSuperAdmin = (u) => u && u.role === "super_admin";
+// Siết quyền Admin truyền thông (09/11/2026): role `admin` chỉ được XEM ở
+// module Quản lý nhân sự và Đơn vị — không được thêm/sửa/xóa. Chỉ
+// super_admin và sub_admin được quản lý nhân sự/đơn vị.
+const canManagePersonnel = (u) => u && (u.role === "super_admin" || u.role === "sub_admin");
+const ERR_PERSONNEL_READONLY = "Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa nhân sự";
+const ERR_UNITS_READONLY = "Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa đơn vị";
 const isLeader = (u) => u && u.role === "leader";
 // Lãnh đạo theo nhóm đối tượng (đính chính 09/11/2026): user được xem số
 // liệu theo cây đơn vị khi role == 'leader' HOẶC hồ sơ CBCNV gắn với tài
@@ -685,7 +691,7 @@ export default {
       return json(env, { ok: true, units: rows });
     }
     if (path === "/api/admin/units" && request.method === "POST") {
-      if (!isAdmin(me)) return err(env, "Cần quyền admin", 403);
+      if (!canManagePersonnel(me)) return err(env, ERR_UNITS_READONLY, 403);
       const b = await readBody(request);
       if (!b.name || !String(b.name).trim()) return err(env, "Thiếu tên đơn vị", 422);
       // Đơn vị cha: mặc định là gốc VNPT Quảng Ninh (is_root=1).
@@ -705,7 +711,7 @@ export default {
     }
     const unitMatch = path.match(/^\/api\/admin\/units\/(\d+)$/);
     if (unitMatch && (request.method === "PUT" || request.method === "DELETE")) {
-      if (!isAdmin(me)) return err(env, "Cần quyền admin", 403);
+      if (!canManagePersonnel(me)) return err(env, ERR_UNITS_READONLY, 403);
       const target = await env.DB.prepare("SELECT * FROM units WHERE id = ?").bind(unitMatch[1]).first();
       if (!target) return err(env, "Không tìm thấy đơn vị", 404);
       if (request.method === "DELETE") {
@@ -767,7 +773,7 @@ export default {
       return json(env, { ok: true, employees: rows });
     }
     if (path === "/api/employees" && request.method === "POST") {
-      if (!isAdmin(me)) return err(env, "Cần quyền admin", 403);
+      if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
       const b = await readBody(request);
       if (!b.code || !b.full_name) return err(env, "Thiếu mã nhân viên hoặc họ tên", 422);
       const ins = await env.DB.prepare(
@@ -781,7 +787,7 @@ export default {
     }
     const empMatch = path.match(/^\/api\/employees\/(\d+)$/);
     if (empMatch && (request.method === "PUT" || request.method === "DELETE")) {
-      if (!isAdmin(me)) return err(env, "Cần quyền admin", 403);
+      if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
       const target = await env.DB.prepare("SELECT * FROM employees WHERE id = ?").bind(empMatch[1]).first();
       if (!target) return err(env, "Không tìm thấy CBCNV", 404);
       if (request.method === "DELETE") {
@@ -812,7 +818,7 @@ export default {
     // value), ánh xạ cột và hiện bảng đối chiếu trước; server chỉ nhận rows
     // đã chuẩn hóa. mode: create | update | replace (replace hỏi confirm ở client).
     if (path === "/api/admin/employees/import" && request.method === "POST") {
-      if (!isAdmin(me)) return err(env, "Cần quyền admin", 403);
+      if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
       const b = await readBody(request);
       const rows = Array.isArray(b.rows) ? b.rows.slice(0, 2000) : [];
       const mode = ["create", "update", "replace"].includes(b.mode) ? b.mode : "create";
@@ -1832,6 +1838,7 @@ export default {
         return json(env, { ok: true, rows });
       }
       if (path === "/api/admin/personnel" && request.method === "POST") {
+        if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
         const b = await readBody(request);
         const code = String(b.code || "").trim();
         const fullName = String(b.full_name || "").trim();
@@ -1880,6 +1887,7 @@ export default {
       }
       const perMatch = path.match(/^\/api\/admin\/personnel\/(\d+)$/);
       if (perMatch && request.method === "PUT") {
+        if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
         const b = await readBody(request);
         const target = await env.DB.prepare("SELECT * FROM employees WHERE id = ?").bind(perMatch[1]).first();
         if (!target) return err(env, "Không tìm thấy nhân sự", 404);
@@ -1943,6 +1951,7 @@ export default {
         return json(env, { ok: true });
       }
       if (perMatch && request.method === "DELETE") {
+        if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
         const target = await env.DB.prepare("SELECT * FROM employees WHERE id = ?").bind(perMatch[1]).first();
         if (!target) return err(env, "Không tìm thấy nhân sự", 404);
         const used = await env.DB.prepare("SELECT COUNT(*) AS c FROM assignments WHERE employee_id = ?").bind(target.id).first();
@@ -1973,6 +1982,7 @@ export default {
       // đổi mật khẩu ở lần đăng nhập đầu tiên (must_change_password=1).
       // Không có đăng ký tự do, không có mật khẩu demo/seed.
       if (path === "/api/admin/users" && request.method === "POST") {
+        if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
         const b = await readBody(request);
         const identifier = normIdentifier(b.identifier ?? b.email);
         if (!identifier) return err(env, "Nhập email hoặc số điện thoại hợp lệ", 422);
@@ -1999,6 +2009,7 @@ export default {
       }
       const lockMatch = path.match(/^\/api\/admin\/users\/(\d+)\/(lock|unlock)$/);
       if (lockMatch && request.method === "POST") {
+        if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
         if (Number(lockMatch[1]) === uid) return err(env, "Không tự khóa chính mình", 400);
         const target = await env.DB.prepare("SELECT role FROM users WHERE id = ?").bind(lockMatch[1]).first();
         if (!target) return err(env, "Không tìm thấy người dùng", 404);
@@ -2009,6 +2020,7 @@ export default {
       }
       const resetMatch = path.match(/^\/api\/admin\/users\/(\d+)\/reset-password$/);
       if (resetMatch && request.method === "POST") {
+        if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
         const b = await readBody(request);
         if (Number(resetMatch[1]) === uid) return err(env, "Đổi mật khẩu của chính mình thì dùng Cài đặt → Đổi mật khẩu", 400);
         if (!b.new_password || String(b.new_password).length < 6) return err(env, "Mật khẩu mới tối thiểu 6 ký tự", 422);
@@ -2031,6 +2043,7 @@ export default {
       // sub_admin/super_admin và không được chạm vào super_admin.
       const roleMatch = path.match(/^\/api\/admin\/users\/(\d+)$/);
       if (roleMatch && request.method === "PUT") {
+        if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
         const b = await readBody(request);
         const target = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(roleMatch[1]).first();
         if (!target) return err(env, "Không tìm thấy người dùng", 404);
@@ -2078,6 +2091,7 @@ export default {
       // từ danh sách nhân sự (DELETE /api/admin/personnel/:id) để xóa cả
       // hồ sơ và tài khoản cùng lúc.
       if (roleMatch && request.method === "DELETE") {
+        if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
         const target = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(roleMatch[1]).first();
         if (!target) return err(env, "Không tìm thấy người dùng", 404);
         if (target.id === uid) return err(env, "Không tự xóa tài khoản của chính mình", 400);

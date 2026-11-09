@@ -2,7 +2,7 @@
 ### Hệ thống giám sát chia sẻ bài viết truyền thông — VNPT Quảng Ninh
 
 > Trang web: https://dhkdvtqn.github.io/qnh-social/
-> Phiên bản tài liệu: v6 (09/11/2026) — **làm lại file mẫu import nhân sự** và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
+> Phiên bản tài liệu: v7 (09/11/2026) — **siết quyền Admin truyền thông: chỉ được XEM ở module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa** (thêm/sửa/xóa do Super Admin hoặc Sub Admin thực hiện). Các thay đổi trước: v6 — làm lại file mẫu import nhân sự và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
 > Mỗi lần hệ thống thay đổi, tài liệu này được cập nhật lại. Bản PDF đi kèm được tạo từ chính file này.
 
 ---
@@ -21,7 +21,7 @@ Hệ thống **không** quét Facebook để chấm công từng người. Kết
 
 ### 2.1. Tài khoản do admin tạo — không có đăng ký tự do
 
-Hệ thống **không có chức năng đăng ký tài khoản mới** trên màn hình đăng nhập. Mọi tài khoản đều do admin (Super Admin / Admin truyền thông / Sub Admin) tạo trong **module Quản lý nhân sự** (xem mục 6) — **1 form duy nhất** chứa đầy đủ thông tin của 1 con người (hồ sơ CBCNV + tài khoản đăng nhập gộp làm một).
+Hệ thống **không có chức năng đăng ký tài khoản mới** trên màn hình đăng nhập. Mọi tài khoản đều do Super Admin hoặc Sub Admin tạo trong **module Quản lý nhân sự** (xem mục 6) — **1 form duy nhất** chứa đầy đủ thông tin của 1 con người (hồ sơ CBCNV + tài khoản đăng nhập gộp làm một).
 
 Khi tạo tài khoản, admin nhập mã nhân viên, họ tên, email hoặc số điện thoại (đây sẽ là tài khoản đăng nhập), đơn vị, nhóm đối tượng — tài khoản CBCNV/Lãnh đạo **bắt buộc** gắn mã NV ngay lúc tạo; admin thuần thì để trống mã. Mật khẩu mặc định là **`Vnpt@2026`** (đã điền sẵn trong form).
 
@@ -51,8 +51,8 @@ Hệ thống **không gửi email** để lấy lại mật khẩu. Vì vậy h�
 | Vai trò | Ai | Được làm gì |
 |---|---|---|
 | **Super Admin** | Quản trị toàn hệ thống | Mọi quyền, **duy nhất** được cấp/thu hồi quyền Sub Admin và quản lý tài khoản Super Admin |
-| **Sub Admin** | Do Super Admin cấp | Như Admin truyền thông: tạo chiến dịch, tạo bài + giao nhiệm vụ, dùng Báo cáo, dùng Quản lý nhân sự, Đơn vị, import/export, chốt tháng |
-| **Admin truyền thông** | Bộ phận truyền thông | Tạo chiến dịch, tạo bài + giao nhiệm vụ, kiểm tra minh chứng, chốt tháng, xem toàn tỉnh, import/export |
+| **Sub Admin** | Do Super Admin cấp | Như Admin truyền thông về mảng truyền thông, CỘNG thêm quyền quản lý nhân sự và đơn vị đầy đủ (thêm/sửa/xóa/import): tạo chiến dịch, tạo bài + giao nhiệm vụ, dùng Báo cáo, dùng Quản lý nhân sự, Đơn vị, import/export, chốt tháng |
+| **Admin truyền thông** | Bộ phận truyền thông | Tạo chiến dịch, tạo bài + giao nhiệm vụ, kiểm tra minh chứng, chốt tháng, xem toàn tỉnh, import/export (không phải nhân sự/đơn vị). **CHỈ XEM ở module Quản lý nhân sự và Đơn vị — không được thêm/sửa/xóa nhân sự, tài khoản hay đơn vị** (kể cả import nhân sự); việc thêm/sửa/xóa ở 2 module này do Super Admin hoặc Sub Admin thực hiện |
 | **Lãnh đạo đơn vị** | Lãnh đạo các đơn vị | Chỉ xem kết quả đơn vị mình và các đơn vị trực thuộc, không sửa dữ liệu. **Quyền này tính theo cả Nhóm đối tượng trong hồ sơ CBCNV: chỉ cần Nhóm = "Lãnh đạo" là được xem theo cây đơn vị, không nhất thiết phải có vai trò (role) Lãnh đạo. Chỉ lãnh đạo tỉnh — đơn vị gốc VNPT Quảng Ninh — mới xem toàn tỉnh.** |
 | **CBCNV** | Toàn thể CBCNV | Xem nhiệm vụ, mở bài, khai báo link chia sẻ, xem kết quả cá nhân |
 
@@ -138,9 +138,9 @@ Bấm **Lưu**: hệ thống **tự động giao nhiệm vụ** cho toàn bộ C
 
 ---
 
-## 6. Quản lý nhân sự (Admin / Sub Admin)
+## 6. Quản lý nhân sự (Super Admin / Sub Admin — Admin truyền thông chỉ xem)
 
-Module **Quản lý nhân sự** là **một module duy nhất, không chia tab**: 1 form tạo nhân sự, 1 danh sách thống nhất, import Excel trong cùng một trang. Chỉ Super Admin / Admin truyền thông / Sub Admin thấy module này. Mục **Đơn vị** là mục riêng trên menu trái, hướng dẫn ở mục 6.4 trong chương này.
+Module **Quản lý nhân sự** là **một module duy nhất, không chia tab**: 1 form tạo nhân sự, 1 danh sách thống nhất, import Excel trong cùng một trang. Chỉ Super Admin / Sub Admin / Admin truyền thông thấy module này — **Admin truyền thông chỉ xem danh sách, không thấy form tạo/sửa, không thấy khu vực import và không thấy các nút Sửa/Xóa/Khóa-Mở/Đặt lại MK** (server cũng chặn cứng mọi thao tác ghi của vai trò này ở 2 module Quản lý nhân sự và Đơn vị, xem mục 3). Mục **Đơn vị** là mục riêng trên menu trái, hướng dẫn ở mục 6.4 trong chương này.
 
 ### 6.1. Tạo nhân sự mới — 1 form duy nhất
 
@@ -185,7 +185,7 @@ Sau import, hệ thống báo rõ: số hồ sơ tạo mới/cập nhật, số 
 
 ### 6.4. Quản lý đơn vị
 
-Vào mục **Đơn vị** trên menu trái.
+Vào mục **Đơn vị** trên menu trái. **Admin truyền thông chỉ xem danh sách đơn vị** (không thấy form thêm/sửa và các nút Sửa/Xóa) — việc thêm/sửa/xóa đơn vị do Super Admin hoặc Sub Admin thực hiện.
 
 **Thêm đơn vị:** nhập tên đơn vị, chọn **Đơn vị cha** (mặc định là **VNPT Quảng Ninh**), nhập thứ tự hiển thị, bấm **Thêm đơn vị**. Đơn vị gốc VNPT Quảng Ninh không hiện trong bảng, chỉ làm gốc cây.
 
@@ -219,6 +219,7 @@ Trong form nhân sự (mục 6.1 hoặc khi Sửa ở mục 6.3), tick checkbox 
 | Link mãi ở "Chờ xác minh" | Facebook hạn chế truy cập tự động — admin kiểm tra thủ công, xem mục 5.3 |
 | Không chốt tháng được | Còn trường hợp "Chờ xác minh" chưa xử lý — xử lý hết rồi mới bấm Chốt chính thức (mục 5.3) |
 | Nhập Excel báo thiếu cột | Bảng đối chiếu chưa ánh xạ cột Mã nhân viên — ánh xạ lại cột Mã nhân viên và Họ tên rồi import |
+| Admin truyền thông bấm thêm/sửa nhân sự hoặc đơn vị thì bị báo không có quyền | Đúng phân quyền từ bản v7: Admin truyền thông chỉ được xem ở 2 module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa (kể cả import) — việc này do Super Admin hoặc Sub Admin làm (mục 3 và 6) |
 | Đăng nhập xong bị bắt đổi mật khẩu + đặt câu hỏi bí mật | Đúng quy trình với tài khoản do admin tạo — làm theo mục 2.2, không phải lỗi |
 | Quên mật khẩu | Dùng chức năng Quên mật khẩu, trả lời đúng hết câu hỏi bí mật (mục 2.3) |
 
