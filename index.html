@@ -517,7 +517,7 @@ function navVisible(it){
   // Giám sát đơn vị / Cần quan tâm / Báo cáo là số liệu đơn vị-toàn tỉnh:
   // CBCNV không xem; lãnh đạo (role leader HOẶC nhóm đối tượng "Lãnh đạo"
   // trong hồ sơ CBCNV gắn với tài khoản) chỉ xem ĐÚNG đơn vị mình —
-  // không gồm đơn vị con — trừ lãnh đạo đơn vị gốc / "Ban lãnh đạo"
+  // không gồm đơn vị con — trừ lãnh đạo đơn vị gốc VNPT Quảng Ninh
   // thì xem toàn tỉnh.
   if(it[0]==="monitor"||it[0]==="attention"||it[0]==="reports")return u.role!=="employee"||isLeaderLikeFE();
   return true;
@@ -526,7 +526,8 @@ function navVisible(it){
 // tài khoản có Nhóm đối tượng == 'Lãnh đạo'. Nhóm 'Chuyên viên' không tính.
 function isLeaderLikeFE(){const u=state.user;return !!(u&&(u.role==="leader"||(state.myEmp&&state.myEmp.group_name==="Lãnh đạo")));}
 // User có phạm vi xem TOÀN TỈNH không? Admin (mọi loại) luôn có; lãnh đạo
-// chỉ khi đơn vị của họ là gốc VNPT Quảng Ninh hoặc tên "Ban lãnh đạo".
+// chỉ khi đơn vị của họ là gốc VNPT Quảng Ninh. Không còn ngoại lệ theo
+// tên đơn vị (bỏ "Ban lãnh đạo" từ 09/11/2026).
 function isProvinceWideFE(){
   const u=state.user;if(!u)return false;
   if(isAdminRole())return true;
@@ -534,9 +535,7 @@ function isProvinceWideFE(){
   const emp=state.myEmp;if(!emp||!emp.unit_id)return false;
   const all=state.unitsAll||[];
   const root=all.find(function(x){return x.is_root;});
-  if(root&&emp.unit_id===root.id)return true;
-  const un=emp.unit_name||(all.find(function(x){return x.id===emp.unit_id;})||{}).name||"";
-  return normHeader(un)==="ban lanh dao";
+  return !!(root&&emp.unit_id===root.id);
 }
 function buildNav(){
   const sb=$("sidebar");
@@ -819,7 +818,12 @@ function unitOptions(sel,all){
     const root=(state.unitsAll||[]).find(function(u){return u.is_root;});
     if(root)head+='<option value="'+root.id+'">🏢 VNPT Quảng Ninh (toàn tỉnh)</option>';
   }
-  el.innerHTML=head+state.units.map(function(u){
+  // Form nhân sự (perUnit + ô lọc perUnitFilter): lấy từ unitsAll để có
+  // cả đơn vị gốc VNPT Quảng Ninh (units thường loại gốc) — để gán user
+  // về cấp tỉnh. Các select khác giữ nguyên units. Cả hai nguồn đều đã
+  // lọc theo phạm vi ở server nên lãnh đạo chỉ thấy đúng đơn vị mình.
+  const list=(sel==="perUnit"||sel==="perUnitFilter")?(state.unitsAll||[]):state.units;
+  el.innerHTML=head+list.map(function(u){
     const ind="— ".repeat(Math.max(0,unitDepth(u.id)-1));
     return '<option value="'+u.id+'">'+ind+esc(u.name)+'</option>';
   }).join("");

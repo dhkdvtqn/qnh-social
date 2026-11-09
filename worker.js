@@ -308,9 +308,9 @@ const isLeader = (u) => u && u.role === "leader";
 // Lãnh đạo theo nhóm đối tượng (đính chính 09/11/2026): user được xem số
 // liệu khi role == 'leader' HOẶC hồ sơ CBCNV gắn với tài khoản có Nhóm
 // đối tượng == 'Lãnh đạo'. Nhóm 'Chuyên viên' KHÔNG được quyền này.
-// Phạm vi (siết 09/11/2026): lãnh đạo chỉ xem ĐÚNG đơn vị của mình,
-// không bao gồm đơn vị con; chỉ lãnh đạo đơn vị gốc VNPT Quảng Ninh
-// hoặc đơn vị "Ban lãnh đạo" mới xem toàn tỉnh.
+// Phạm vi (09/11/2026, đã bỏ ngoại lệ "Ban lãnh đạo"): lãnh đạo chỉ xem
+// ĐÚNG đơn vị của mình, không bao gồm đơn vị con; chỉ lãnh đạo đơn vị
+// gốc VNPT Quảng Ninh (đơn vị của họ chính là toàn tỉnh) mới xem toàn tỉnh.
 async function isLeaderLike(env, user, emp) {
   if (isLeader(user)) return true;
   const e = emp || await myEmployee(env, user);
@@ -318,9 +318,8 @@ async function isLeaderLike(env, user, emp) {
 }
 // Phạm vi đơn vị được xem (để lọc báo cáo so sánh tháng): admin = null
 // (toàn tỉnh); lãnh đạo (role hoặc nhóm) = CHỈ ĐÚNG đơn vị của mình —
-// KHÔNG bao gồm đơn vị con (siết 09/11/2026); ngoại lệ: lãnh đạo đơn vị
-// gốc VNPT Quảng Ninh hoặc đơn vị "Ban lãnh đạo" thì xem toàn tỉnh
-// (null); CBCNV = chỉ đơn vị của chính mình.
+// KHÔNG bao gồm đơn vị con (09/11/2026); chỉ lãnh đạo đơn vị gốc
+// VNPT Quảng Ninh thì xem toàn tỉnh (null); CBCNV = chỉ đơn vị của mình.
 async function visibleUnitIds(env, user) {
   if (isAdmin(user)) return null;
   const emp = await myEmployee(env, user);
@@ -331,15 +330,15 @@ async function visibleUnitIds(env, user) {
   }
   return [emp.unit_id];
 }
-// Lãnh đạo xem TOÀN TỈNH chỉ trong 2 trường hợp: đơn vị của họ là đơn vị
-// gốc VNPT Quảng Ninh (parent_id NULL / is_root = 1) HOẶC đơn vị có tên
-// "Ban lãnh đạo" (khớp không dấu, không phân biệt hoa thường).
+// Lãnh đạo xem TOÀN TỈNH chỉ khi đơn vị của họ là đơn vị gốc
+// VNPT Quảng Ninh (parent_id NULL / is_root = 1) — vì đơn vị của họ
+// chính là toàn tỉnh. Không còn ngoại lệ theo tên đơn vị (bỏ "Ban lãnh
+// đạo" từ 09/11/2026): lãnh đạo đơn vị đó chỉ xem đúng đơn vị mình.
 async function isProvinceWideLeader(env, emp) {
   if (!emp || !emp.unit_id) return false;
   const unit = await env.DB.prepare("SELECT * FROM units WHERE id = ?").bind(emp.unit_id).first();
   if (!unit) return false;
-  if (!unit.parent_id || unit.is_root) return true;
-  return normAnswer(unit.name) === "ban lanh dao";
+  return !unit.parent_id || !!unit.is_root;
 }
 // Vai trò mặc định cho 1 nhân sự khi tạo mới: tick SubAdmin -> sub_admin;
 // Nhóm "Lãnh đạo" -> leader; còn lại -> employee. Form tự điền sẵn theo
@@ -385,8 +384,8 @@ async function unitSubtreeIds(env, unitId) {
   return ids;
 }
 // Phạm vi nhân viên được xem: admin = toàn tỉnh; lãnh đạo = CHỈ nhân viên
-// trong đúng đơn vị mình (siết 09/11/2026 — không gồm đơn vị con), trừ
-// lãnh đạo đơn vị gốc / "Ban lãnh đạo" thì toàn tỉnh (null);
+// trong đúng đơn vị mình (09/11/2026 — không gồm đơn vị con), trừ
+// lãnh đạo đơn vị gốc VNPT Quảng Ninh thì toàn tỉnh (null);
 // CBCNV = chỉ chính mình. Trả null nghĩa là "toàn bộ".
 async function visibleEmployeeIds(env, user) {
   if (isAdmin(user)) return null;
@@ -1406,8 +1405,8 @@ export default {
     }
     // Dashboard đơn vị: bảng CBCNV × bài (✓/×) + tỷ lệ.
     // unit_id = đơn vị gốc (VNPT Quảng Ninh) nghĩa là TOÀN TỈNH: chỉ user
-    // có phạm vi toàn tỉnh (admin, lãnh đạo đơn vị gốc / "Ban lãnh đạo")
-    // mới xem được; lãnh đạo đơn vị con chỉ xem đúng đơn vị mình.
+    // có phạm vi toàn tỉnh (admin, lãnh đạo đơn vị gốc) mới xem được;
+    // lãnh đạo đơn vị con chỉ xem đúng đơn vị mình.
     if (path === "/api/dashboard/unit" && request.method === "GET") {
       const month = validMonth(url.searchParams.get("month")) ? url.searchParams.get("month") : new Date().toISOString().slice(0, 7);
       const unitId = Number(url.searchParams.get("unit_id") || 0);

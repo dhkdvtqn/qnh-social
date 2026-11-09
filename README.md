@@ -65,13 +65,16 @@ localStorage (như MyMoney), mọi dữ liệu nghiệp vụ qua Worker → D1.
    cấp/thu hồi quyền sub_admin (chỉ super_admin gán/thu hồi), KHÔNG được
    tạo/sửa/xóa/khóa/đặt lại mật khẩu tài khoản super_admin;
    **`leader` — lãnh đạo theo nhóm đối tượng (SIẾT 09/11/2026, thay thế quy
-   tắc "cây đơn vị" cũ):** một user được xem số liệu khi `role == 'leader'`
-   **HOẶC** hồ sơ CBCNV gắn với tài khoản có **Nhóm đối tượng == 'Lãnh đạo'**.
-   Phạm vi = **CHỈ ĐÚNG đơn vị của người đó, không bao gồm đơn vị con**;
-   **chỉ 2 trường hợp xem toàn tỉnh: lãnh đạo đơn vị gốc VNPT Quảng Ninh,
-   hoặc lãnh đạo đơn vị "Ban lãnh đạo"** (khớp tên không dấu). VD:
-   `hant.qnh@vnpt.vn` (VNPT Hạ Long) chỉ xem số liệu/báo cáo của VNPT Hạ
-   Long; `tongdangdung@vnpt.vn` (đơn vị "Ban lãnh đạo") xem toàn tỉnh.
+   tắc "cây đơn vị" cũ; ĐỢT 9 BỎ NGOẠI LỆ "Ban lãnh đạo"):** một user được
+   xem số liệu khi `role == 'leader'` **HOẶC** hồ sơ CBCNV gắn với tài khoản
+   có **Nhóm đối tượng == 'Lãnh đạo'**. Phạm vi = **CHỈ ĐÚNG đơn vị của người
+   đó, không bao gồm đơn vị con**; **chỉ lãnh đạo đơn vị gốc VNPT Quảng Ninh
+   mới xem toàn tỉnh** (vì đơn vị của họ chính là toàn tỉnh) — không còn
+   ngoại lệ theo tên đơn vị. VD: `hant.qnh@vnpt.vn` (VNPT Hạ Long) chỉ xem
+   số liệu/báo cáo của VNPT Hạ Long; `tongdangdung@vnpt.vn` nếu còn ở đơn vị
+   "Ban lãnh đạo" thì chỉ xem Ban lãnh đạo — muốn xem toàn tỉnh thì đưa tài
+   khoản về đơn vị VNPT Quảng Ninh trong module Quản lý nhân sự (ô chọn Đơn
+   vị đã có "VNPT Quảng Ninh" từ đợt 9).
    Áp dụng cho Dashboard, Báo cáo, Giám sát, danh sách CBCNV trong báo cáo
    và bảng so sánh tháng — kể cả tháng đã chốt (snapshot cũng lọc theo phạm
    vi). Nhóm **"Chuyên viên" KHÔNG** được hưởng quyền này — chuyên viên chỉ
@@ -298,22 +301,43 @@ qnh-social/
 ├── schema.sql      # D1 schema: 19 bảng + seed 10 đơn vị + settings
 ├── wrangler.jsonc  # Worker qnh-social-api, D1 qnh-social-db, cron 2 ngày/lần
 ├── docs/
-│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v8)
+│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v9)
 └── README.md       # File này
 ```
 
 ## Chưa làm / cần anh Tuấn quyết định
 
-1. **Đợt 8 (09/11/2026, nút Đăng xuất + VNPT Quảng Ninh toàn tỉnh + siết phạm vi lãnh đạo — BẢN MỚI NHẤT):**
+1. **Đợt 9 (09/11/2026, bỏ ngoại lệ "Ban lãnh đạo" + ô chọn đơn vị có VNPT Quảng Ninh — BẢN MỚI NHẤT):**
+   (a) **Bỏ hẳn ngoại lệ "Ban lãnh đạo"** (đổi so với đợt 8): lãnh đạo chỉ xem
+   **đúng đơn vị mình**, không còn ngoại lệ theo tên đơn vị — `isProvinceWideLeader`
+   chỉ còn điều kiện đơn vị gốc, `isProvinceWideFE` tương tự; `tongdangdung@vnpt.vn`
+   ở đơn vị "Ban lãnh đạo" giờ chỉ xem Ban lãnh đạo; muốn xem toàn tỉnh thì đưa
+   tài khoản về đơn vị gốc VNPT Quảng Ninh. (b) Ô chọn **Đơn vị** ở form tạo/sửa
+   nhân sự và ô lọc đơn vị trong danh sách nhân sự nay lấy từ `unitsAll`
+   (`/api/units?include_root=1`) nên đã có **VNPT Quảng Ninh** — gán user về cấp
+   tỉnh thì lãnh đạo ở đó xem toàn tỉnh và xem từng đơn vị trong Giám sát đơn vị.
+   CBCNV/Chuyên viên dù gán về VNPT Quảng Ninh vẫn chỉ xem dữ liệu của chính mình.
+   **Đợt này CÓ thay đổi `worker.js`** — cần: (a) đẩy `index.html` + `worker.js` +
+   `README.md` + `docs/huong-dan-su-dung.md` mới lên GitHub; (b) **dán lại `worker.js`
+   mới lên Cloudflare** (Worker `qnh-social-api`) thì các thay đổi phía máy chủ mới
+   có hiệu lực; (c) kiểm tra `/api/health` vẫn trả `database: "ok"` sau khi dán (không
+   cần chạy lại schema — không đổi schema). Sau đó kiểm tra thử 1 vòng: đăng nhập bằng
+   `tongdangdung@vnpt.vn` → chỉ thấy Ban lãnh đạo, xin VNPT Quảng Ninh bị chặn;
+   đăng nhập bằng `hant.qnh@vnpt.vn` → chỉ thấy VNPT Hạ Long (không đổi); gán 1 lãnh
+   đạo về VNPT Quảng Ninh trong Quản lý nhân sự → tài khoản đó xem toàn tỉnh.
+   Kiểm tra bằng harness: 55/55 PASS.
+2. **Đợt 8 (09/11/2026, nút Đăng xuất + VNPT Quảng Ninh toàn tỉnh + siết phạm vi lãnh đạo — ĐÃ BỊ ĐỢT 9 SỬA PHẦN NGOẠI LỆ "Ban lãnh đạo"):**
    (a) nút **"🚪 Đăng xuất"** ngay dưới nút **Cài đặt** trong menu trái
    (và cuối danh sách menu ☰ trên điện thoại); (b) module **Giám sát đơn vị**
    thêm lựa chọn **"VNPT Quảng Ninh (toàn tỉnh)"** — chỉ user có phạm vi toàn
-   tỉnh (admin mọi loại, lãnh đạo đơn vị gốc / "Ban lãnh đạo") mới thấy, chọn
+   tỉnh (admin mọi loại, lãnh đạo đơn vị gốc — đợt 9 đã bỏ ngoại lệ "Ban
+   lãnh đạo") mới thấy, chọn
    thì xem bảng tổng hợp toàn tỉnh; lãnh đạo đơn vị con chỉ thấy đúng đơn vị
    mình; (c) lãnh đạo nhóm "Lãnh đạo" **chỉ xem đúng đơn vị mình, không gồm
    đơn vị con** (VD `hant.qnh@vnpt.vn` chỉ xem VNPT Hạ Long), ngoại lệ duy
-   nhất `tongdangdung@vnpt.vn` (đơn vị "Ban lãnh đạo") và lãnh đạo đơn vị gốc
-   xem toàn tỉnh — server chặn cứng ở `visibleUnitIds`/`visibleEmployeeIds`
+   nhất lúc đó là `tongdangdung@vnpt.vn` (đơn vị "Ban lãnh đạo") và lãnh đạo
+   đơn vị gốc xem toàn tỉnh (đợt 9 đã bỏ ngoại lệ này) — server chặn cứng ở
+   `visibleUnitIds`/`visibleEmployeeIds`
    + `isProvinceWideLeader` (áp dụng Dashboard, Báo cáo, Giám sát, Cần quan
    tâm, so sánh tháng, cả snapshot tháng đã chốt; `/api/units` cũng lọc theo
    phạm vi). **Đợt này CÓ thay đổi `worker.js`** — cần: (a) đẩy
@@ -323,10 +347,10 @@ qnh-social/
    tra `/api/health` vẫn trả `database: "ok"` sau khi dán (không cần chạy lại
    schema — không đổi schema). Sau đó kiểm tra thử 1 vòng: đăng nhập bằng
    tài khoản `hant.qnh@vnpt.vn` → Giám sát đơn vị chỉ thấy VNPT Hạ Long, xin
-   đơn vị khác bị chặn; đăng nhập bằng `tongdangdung@vnpt.vn` → thấy
-   "VNPT Quảng Ninh (toàn tỉnh)" và xem được toàn tỉnh; nút Đăng xuất nằm
-   ngay dưới Cài đặt. Kiểm tra bằng harness: 44/44 PASS.
-2. **Đợt 7 (09/11/2026, siết quyền Admin truyền thông):**
+   đơn vị khác bị chặn; nút Đăng xuất nằm ngay dưới Cài đặt. (Bước kiểm tra
+   `tongdangdung@vnpt.vn` xem toàn tỉnh đã đổi ở đợt 9: giờ chỉ thấy Ban lãnh
+   đạo.) Kiểm tra bằng harness: 44/44 PASS.
+3. **Đợt 7 (09/11/2026, siết quyền Admin truyền thông):**
    role `admin` **chỉ được XEM** ở module Quản lý nhân sự và Đơn vị (không
    được thêm/sửa/xóa nhân sự, tài khoản hay đơn vị, kể cả import) — server
    chặn cứng bằng `canManagePersonnel` ở mọi endpoint ghi của 2 module,
@@ -341,7 +365,7 @@ qnh-social/
    danh sách, không có form/nút ghi) → thử gọi API thêm/sửa nhân sự hoặc
    đơn vị bằng tài khoản đó phải trả 403; đăng nhập bằng sub_admin vẫn
    thêm/sửa/xóa được; admin vẫn tạo được chiến dịch/bài và chốt tháng.
-2. **Đợt 5 (09/11/2026, đính chính module Quản lý nhân sự — BẢN NÀY THAY
+4. **Đợt 5 (09/11/2026, đính chính module Quản lý nhân sự — BẢN NÀY THAY
    THẾ HOÀN TOÀN bản 2 tab ở đợt 4):** 1 form duy nhất tạo đồng thời hồ sơ
    CBCNV + tài khoản đăng nhập; import tự tạo tài khoản; 1 danh sách thống
    nhất có lọc đơn vị + tìm kiếm không dấu; phân quyền xem số liệu theo
@@ -363,14 +387,14 @@ qnh-social/
    (Các đợt 2+3 trước đó — sub_admin, bỏ đăng ký tự do, mật khẩu mặc định,
    bắt buộc đổi MK + đặt câu hỏi bí mật lần đầu — cũng cần dán worker.js
    1 lần; dán 1 lần kích hoạt tất cả.)
-3. **Xác minh Facebook** (xem mục giới hạn ở trên): oEmbed có thể trả UNKNOWN
+5. **Xác minh Facebook** (xem mục giới hạn ở trên): oEmbed có thể trả UNKNOWN
    với đa số link nếu Meta yêu cầu token — admin sẽ phải xác nhận thủ công
    nhiều trường hợp. Nếu anh có Page access token của Fanpage VNPT Quảng Ninh,
    giai đoạn sau có thể bổ sung xác minh qua Meta Graph API.
-4. **"Link cũ"** (bài chia sẻ ngoài thời gian chiến dịch): hệ thống không lấy
+6. **"Link cũ"** (bài chia sẻ ngoài thời gian chiến dịch): hệ thống không lấy
    được ngày đăng bài tự động nên chỉ gắn cờ khi khai báo trước ngày phát hành
    hoặc sau hạn — admin vẫn phải đối soát tay các trường hợp này.
-5. **Thông báo**: giai đoạn 1 chỉ có thông báo trong web. Zalo OA / email để
+7. **Thông báo**: giai đoạn 1 chỉ có thông báo trong web. Zalo OA / email để
    giai đoạn sau khi có API.
-5. **Ảnh minh chứng** (phương án dự phòng trong đề cương): chưa làm — cần
+8. **Ảnh minh chứng** (phương án dự phòng trong đề cương): chưa làm — cần
    Cloudflare R2 nếu anh muốn CBCNV tải ảnh chụp màn hình thay cho link.
