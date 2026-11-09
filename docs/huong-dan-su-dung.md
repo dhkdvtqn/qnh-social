@@ -2,7 +2,7 @@
 ### Hệ thống giám sát chia sẻ bài viết truyền thông — VNPT Quảng Ninh
 
 > Trang web: https://dhkdvtqn.github.io/qnh-social/
-> Phiên bản tài liệu: v5.1 (09/11/2026) — sửa nhỏ: **làm lại file mẫu import nhân sự** theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
+> Phiên bản tài liệu: v6 (09/11/2026) — **làm lại file mẫu import nhân sự** và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
 > Mỗi lần hệ thống thay đổi, tài liệu này được cập nhật lại. Bản PDF đi kèm được tạo từ chính file này.
 
 ---
