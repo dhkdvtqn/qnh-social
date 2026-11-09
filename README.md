@@ -64,16 +64,20 @@ localStorage (như MyMoney), mọi dữ liệu nghiệp vụ qua Worker → D1.
    import/export) với 2 NGOẠI LỆ do server chặn cứng: sub_admin KHÔNG được
    cấp/thu hồi quyền sub_admin (chỉ super_admin gán/thu hồi), KHÔNG được
    tạo/sửa/xóa/khóa/đặt lại mật khẩu tài khoản super_admin;
-   **`leader` — lãnh đạo theo nhóm đối tượng (đổi 09/11/2026):** một user được
-   xem số liệu theo cây đơn vị khi `role == 'leader'` **HOẶC** hồ sơ CBCNV gắn
-   với tài khoản có **Nhóm đối tượng == 'Lãnh đạo'**. Phạm vi = đơn vị của
-   người đó + toàn bộ đơn vị trực thuộc; **chỉ khi đơn vị là gốc VNPT Quảng
-   Ninh (lãnh đạo tỉnh) thì phạm vi mới là toàn tỉnh**. Áp dụng cho Dashboard,
-   Báo cáo, Giám sát, danh sách CBCNV trong báo cáo và bảng so sánh tháng.
-   Nhóm **"Chuyên viên" KHÔNG** được hưởng quyền này — chuyên viên chỉ xem
-   số liệu cá nhân như CBCNV (menu chỉ còn Tổng quan + Nhiệm vụ của tôi +
-   Thông báo + Cài đặt); lãnh đạo (role hoặc nhóm) xem thêm Giám sát đơn vị /
-   Cần quan tâm / Báo cáo theo cây đơn vị mình.
+   **`leader` — lãnh đạo theo nhóm đối tượng (SIẾT 09/11/2026, thay thế quy
+   tắc "cây đơn vị" cũ):** một user được xem số liệu khi `role == 'leader'`
+   **HOẶC** hồ sơ CBCNV gắn với tài khoản có **Nhóm đối tượng == 'Lãnh đạo'**.
+   Phạm vi = **CHỈ ĐÚNG đơn vị của người đó, không bao gồm đơn vị con**;
+   **chỉ 2 trường hợp xem toàn tỉnh: lãnh đạo đơn vị gốc VNPT Quảng Ninh,
+   hoặc lãnh đạo đơn vị "Ban lãnh đạo"** (khớp tên không dấu). VD:
+   `hant.qnh@vnpt.vn` (VNPT Hạ Long) chỉ xem số liệu/báo cáo của VNPT Hạ
+   Long; `tongdangdung@vnpt.vn` (đơn vị "Ban lãnh đạo") xem toàn tỉnh.
+   Áp dụng cho Dashboard, Báo cáo, Giám sát, danh sách CBCNV trong báo cáo
+   và bảng so sánh tháng — kể cả tháng đã chốt (snapshot cũng lọc theo phạm
+   vi). Nhóm **"Chuyên viên" KHÔNG** được hưởng quyền này — chuyên viên chỉ
+   xem số liệu cá nhân như CBCNV (menu chỉ còn Tổng quan + Nhiệm vụ của tôi
+   + Thông báo + Cài đặt); lãnh đạo (role hoặc nhóm) xem thêm Giám sát đơn
+   vị / Cần quan tâm / Báo cáo theo đúng đơn vị mình.
    `employee` (xem nhiệm vụ, mở bài, khai báo link, xem kết quả cá nhân;
    menu chỉ còn Tổng quan + Nhiệm vụ của tôi + Thông báo + Cài đặt). Tài
    khoản gắn với 1 CBCNV (`employee_id`) hoặc là admin thuần. Một mã NV chỉ
@@ -294,13 +298,35 @@ qnh-social/
 ├── schema.sql      # D1 schema: 19 bảng + seed 10 đơn vị + settings
 ├── wrangler.jsonc  # Worker qnh-social-api, D1 qnh-social-db, cron 2 ngày/lần
 ├── docs/
-│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v7)
+│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v8)
 └── README.md       # File này
 ```
 
 ## Chưa làm / cần anh Tuấn quyết định
 
-1. **Đợt 7 (09/11/2026, siết quyền Admin truyền thông — BẢN MỚI NHẤT):**
+1. **Đợt 8 (09/11/2026, nút Đăng xuất + VNPT Quảng Ninh toàn tỉnh + siết phạm vi lãnh đạo — BẢN MỚI NHẤT):**
+   (a) nút **"🚪 Đăng xuất"** ngay dưới nút **Cài đặt** trong menu trái
+   (và cuối danh sách menu ☰ trên điện thoại); (b) module **Giám sát đơn vị**
+   thêm lựa chọn **"VNPT Quảng Ninh (toàn tỉnh)"** — chỉ user có phạm vi toàn
+   tỉnh (admin mọi loại, lãnh đạo đơn vị gốc / "Ban lãnh đạo") mới thấy, chọn
+   thì xem bảng tổng hợp toàn tỉnh; lãnh đạo đơn vị con chỉ thấy đúng đơn vị
+   mình; (c) lãnh đạo nhóm "Lãnh đạo" **chỉ xem đúng đơn vị mình, không gồm
+   đơn vị con** (VD `hant.qnh@vnpt.vn` chỉ xem VNPT Hạ Long), ngoại lệ duy
+   nhất `tongdangdung@vnpt.vn` (đơn vị "Ban lãnh đạo") và lãnh đạo đơn vị gốc
+   xem toàn tỉnh — server chặn cứng ở `visibleUnitIds`/`visibleEmployeeIds`
+   + `isProvinceWideLeader` (áp dụng Dashboard, Báo cáo, Giám sát, Cần quan
+   tâm, so sánh tháng, cả snapshot tháng đã chốt; `/api/units` cũng lọc theo
+   phạm vi). **Đợt này CÓ thay đổi `worker.js`** — cần: (a) đẩy
+   `index.html` + `worker.js` + `README.md` + `docs/huong-dan-su-dung.md`
+   mới lên GitHub; (b) **dán lại `worker.js` mới lên Cloudflare** (Worker
+   `qnh-social-api`) thì các thay đổi phía máy chủ mới có hiệu lực; (c) kiểm
+   tra `/api/health` vẫn trả `database: "ok"` sau khi dán (không cần chạy lại
+   schema — không đổi schema). Sau đó kiểm tra thử 1 vòng: đăng nhập bằng
+   tài khoản `hant.qnh@vnpt.vn` → Giám sát đơn vị chỉ thấy VNPT Hạ Long, xin
+   đơn vị khác bị chặn; đăng nhập bằng `tongdangdung@vnpt.vn` → thấy
+   "VNPT Quảng Ninh (toàn tỉnh)" và xem được toàn tỉnh; nút Đăng xuất nằm
+   ngay dưới Cài đặt. Kiểm tra bằng harness: 44/44 PASS.
+2. **Đợt 7 (09/11/2026, siết quyền Admin truyền thông):**
    role `admin` **chỉ được XEM** ở module Quản lý nhân sự và Đơn vị (không
    được thêm/sửa/xóa nhân sự, tài khoản hay đơn vị, kể cả import) — server
    chặn cứng bằng `canManagePersonnel` ở mọi endpoint ghi của 2 module,

@@ -516,13 +516,28 @@ function navVisible(it){
   if(it[0]==="tasks")return true;
   // Giám sát đơn vị / Cần quan tâm / Báo cáo là số liệu đơn vị-toàn tỉnh:
   // CBCNV không xem; lãnh đạo (role leader HOẶC nhóm đối tượng "Lãnh đạo"
-  // trong hồ sơ CBCNV gắn với tài khoản) được xem theo cây đơn vị mình.
+  // trong hồ sơ CBCNV gắn với tài khoản) chỉ xem ĐÚNG đơn vị mình —
+  // không gồm đơn vị con — trừ lãnh đạo đơn vị gốc / "Ban lãnh đạo"
+  // thì xem toàn tỉnh.
   if(it[0]==="monitor"||it[0]==="attention"||it[0]==="reports")return u.role!=="employee"||isLeaderLikeFE();
   return true;
 }
 // Lãnh đạo theo nhóm đối tượng: role == 'leader' HOẶC hồ sơ CBCNV gắn với
 // tài khoản có Nhóm đối tượng == 'Lãnh đạo'. Nhóm 'Chuyên viên' không tính.
 function isLeaderLikeFE(){const u=state.user;return !!(u&&(u.role==="leader"||(state.myEmp&&state.myEmp.group_name==="Lãnh đạo")));}
+// User có phạm vi xem TOÀN TỈNH không? Admin (mọi loại) luôn có; lãnh đạo
+// chỉ khi đơn vị của họ là gốc VNPT Quảng Ninh hoặc tên "Ban lãnh đạo".
+function isProvinceWideFE(){
+  const u=state.user;if(!u)return false;
+  if(isAdminRole())return true;
+  if(!isLeaderLikeFE())return false;
+  const emp=state.myEmp;if(!emp||!emp.unit_id)return false;
+  const all=state.unitsAll||[];
+  const root=all.find(function(x){return x.is_root;});
+  if(root&&emp.unit_id===root.id)return true;
+  const un=emp.unit_name||(all.find(function(x){return x.id===emp.unit_id;})||{}).name||"";
+  return normHeader(un)==="ban lanh dao";
+}
 function buildNav(){
   const sb=$("sidebar");
   sb.innerHTML='<div class="brand">📣 QNH Social</div><p class="muted">Giám sát chia sẻ truyền thông<br>VNPT Quảng Ninh</p>';
@@ -534,6 +549,8 @@ function buildNav(){
   main.forEach(function(it){sb.appendChild(navBtn(it));});
   sb.appendChild(Object.assign(document.createElement("div"),{className:"sect",textContent:"Quản trị & báo cáo"}));
   rest.forEach(function(it){sb.appendChild(navBtn(it));});
+  // Nút Đăng xuất đặt ngay dưới nút Cài đặt (mục cuối của menu).
+  const lo=document.createElement("button");lo.type="button";lo.innerHTML='<span class="ico">🚪</span><span>Đăng xuất</span>';lo.onclick=function(){logout(false);};sb.appendChild(lo);
   main.slice(0,2).forEach(function(it){bn.appendChild(navBtn(it));});
   const fab=document.createElement("button");fab.type="button";fab.className="fab";fab.innerHTML="<span>+</span>";
   fab.style.cssText="flex:0 0 64px";fab.onclick=function(){go("tasks");};bn.appendChild(fab);
@@ -549,6 +566,9 @@ function openMenu(){
     const b=document.createElement("button");b.type="button";b.className="btn";b.textContent=it[1]+" "+it[2];
     b.onclick=function(){show("menuModal",false);go(it[0]);};list.appendChild(b);
   });
+  // Đăng xuất ngay dưới Cài đặt (mục cuối) trong menu mobile.
+  const lo=document.createElement("button");lo.type="button";lo.className="btn";lo.textContent="🚪 Đăng xuất";
+  lo.onclick=function(){show("menuModal",false);logout(false);};list.appendChild(lo);
   show("menuModal",true);
 }
 function go(view){
@@ -789,7 +809,17 @@ function unitDepth(id){
 function unitOptions(sel,all){
   const el=$(sel);if(!el)return;
   const cur=el.value;
-  el.innerHTML=(all?'<option value="">Tất cả đơn vị</option>':"")+state.units.map(function(u){
+  const provinceWide=isProvinceWideFE();
+  let head="";
+  // Lãnh đạo chỉ có đúng 1 đơn vị trong phạm vi thì không hiện
+  // "Tất cả đơn vị" (chọn đó cũng chỉ ra đúng đơn vị mình).
+  if(all&&!(state.units.length===1&&!provinceWide))head+='<option value="">Tất cả đơn vị</option>';
+  // Giám sát đơn vị: user toàn tỉnh được chọn "VNPT Quảng Ninh (toàn tỉnh)".
+  if(sel==="monUnit"&&provinceWide){
+    const root=(state.unitsAll||[]).find(function(u){return u.is_root;});
+    if(root)head+='<option value="'+root.id+'">🏢 VNPT Quảng Ninh (toàn tỉnh)</option>';
+  }
+  el.innerHTML=head+state.units.map(function(u){
     const ind="— ".repeat(Math.max(0,unitDepth(u.id)-1));
     return '<option value="'+u.id+'">'+ind+esc(u.name)+'</option>';
   }).join("");
@@ -935,8 +965,14 @@ async function reassignPost(postId){
 
 /* ================= Giám sát đơn vị ================= */
 async function loadMonitor(){
-  loadUnitsIntoSelects();
-  if(!$("monUnit").value&&state.units.length)$("monUnit").value=state.units[0].id;
+  await loadUnitsIntoSelects();
+  if(!$("monUnit").value){
+    // Mặc định: user toàn tỉnh xem VNPT Quảng Ninh (toàn tỉnh),
+    // lãnh đạo đơn vị con xem đúng đơn vị mình.
+    const root=(state.unitsAll||[]).find(function(u){return u.is_root;});
+    if(isProvinceWideFE()&&root)$("monUnit").value=root.id;
+    else if(state.units.length)$("monUnit").value=state.units[0].id;
+  }
 }
 async function loadUnitTable(){
   const month=$("monMonth").value||monthVN();

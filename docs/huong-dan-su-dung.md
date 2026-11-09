@@ -2,7 +2,7 @@
 ### Hệ thống giám sát chia sẻ bài viết truyền thông — VNPT Quảng Ninh
 
 > Trang web: https://dhkdvtqn.github.io/qnh-social/
-> Phiên bản tài liệu: v7 (09/11/2026) — **siết quyền Admin truyền thông: chỉ được XEM ở module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa** (thêm/sửa/xóa do Super Admin hoặc Sub Admin thực hiện). Các thay đổi trước: v6 — làm lại file mẫu import nhân sự và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
+> Phiên bản tài liệu: v8 (09/11/2026) — **(1) nút "Đăng xuất" ngay dưới nút "Cài đặt" trong menu; (2) module Giám sát đơn vị thêm lựa chọn "VNPT Quảng Ninh (toàn tỉnh)"; (3) siết phạm vi xem của nhóm "Lãnh đạo": chỉ xem ĐÚNG đơn vị của mình, không gồm đơn vị con — ngoại lệ duy nhất là lãnh đạo đơn vị gốc VNPT Quảng Ninh hoặc đơn vị "Ban lãnh đạo" thì xem toàn tỉnh.** Các thay đổi trước: v7 — siết quyền Admin truyền thông: chỉ được XEM ở module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa; v6 — làm lại file mẫu import nhân sự và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
 > Mỗi lần hệ thống thay đổi, tài liệu này được cập nhật lại. Bản PDF đi kèm được tạo từ chính file này.
 
 ---
@@ -53,10 +53,14 @@ Hệ thống **không gửi email** để lấy lại mật khẩu. Vì vậy h�
 | **Super Admin** | Quản trị toàn hệ thống | Mọi quyền, **duy nhất** được cấp/thu hồi quyền Sub Admin và quản lý tài khoản Super Admin |
 | **Sub Admin** | Do Super Admin cấp | Như Admin truyền thông về mảng truyền thông, CỘNG thêm quyền quản lý nhân sự và đơn vị đầy đủ (thêm/sửa/xóa/import): tạo chiến dịch, tạo bài + giao nhiệm vụ, dùng Báo cáo, dùng Quản lý nhân sự, Đơn vị, import/export, chốt tháng |
 | **Admin truyền thông** | Bộ phận truyền thông | Tạo chiến dịch, tạo bài + giao nhiệm vụ, kiểm tra minh chứng, chốt tháng, xem toàn tỉnh, import/export (không phải nhân sự/đơn vị). **CHỈ XEM ở module Quản lý nhân sự và Đơn vị — không được thêm/sửa/xóa nhân sự, tài khoản hay đơn vị** (kể cả import nhân sự); việc thêm/sửa/xóa ở 2 module này do Super Admin hoặc Sub Admin thực hiện |
-| **Lãnh đạo đơn vị** | Lãnh đạo các đơn vị | Chỉ xem kết quả đơn vị mình và các đơn vị trực thuộc, không sửa dữ liệu. **Quyền này tính theo cả Nhóm đối tượng trong hồ sơ CBCNV: chỉ cần Nhóm = "Lãnh đạo" là được xem theo cây đơn vị, không nhất thiết phải có vai trò (role) Lãnh đạo. Chỉ lãnh đạo tỉnh — đơn vị gốc VNPT Quảng Ninh — mới xem toàn tỉnh.** |
+| **Lãnh đạo đơn vị** | Lãnh đạo các đơn vị | Chỉ xem kết quả **ĐÚNG đơn vị của mình, không bao gồm đơn vị con**, không sửa dữ liệu. **Quyền này tính theo cả Nhóm đối tượng trong hồ sơ CBCNV: chỉ cần Nhóm = "Lãnh đạo" là được xem theo đơn vị mình, không nhất thiết phải có vai trò (role) Lãnh đạo. Ngoại lệ duy nhất xem toàn tỉnh: lãnh đạo đơn vị gốc VNPT Quảng Ninh, hoặc lãnh đạo đơn vị "Ban lãnh đạo" (đơn vị cấp cao nhất của VNPT Quảng Ninh).** Ví dụ: tài khoản `hant.qnh@vnpt.vn` thuộc VNPT Hạ Long thì chỉ xem số liệu và báo cáo của VNPT Hạ Long; tài khoản `tongdangdung@vnpt.vn` thuộc đơn vị "Ban lãnh đạo" thì xem số liệu toàn tỉnh. |
 | **CBCNV** | Toàn thể CBCNV | Xem nhiệm vụ, mở bài, khai báo link chia sẻ, xem kết quả cá nhân |
 
-**Lưu ý:** Sub Admin **không** được cấp quyền Sub Admin cho người khác và **không** được sửa/khóa/đặt lại mật khẩu tài khoản Super Admin. Nhóm **"Chuyên viên" không** được hưởng quyền xem theo cây đơn vị như nhóm "Lãnh đạo" — chuyên viên chỉ xem số liệu cá nhân như CBCNV.
+**Lưu ý:** Sub Admin **không** được cấp quyền Sub Admin cho người khác và **không** được sửa/khóa/đặt lại mật khẩu tài khoản Super Admin. Nhóm **"Chuyên viên" không** được hưởng quyền xem theo đơn vị như nhóm "Lãnh đạo" — chuyên viên chỉ xem số liệu cá nhân như CBCNV.
+
+### 2.4. Đăng xuất
+
+Nút **"🚪 Đăng xuất"** nằm trong menu trái, **ngay dưới nút "Cài đặt"** (mục cuối cùng của menu; trên điện thoại thì nằm cuối danh sách trong menu ☰). Bấm vào là thoát phiên đăng nhập và quay về màn hình đăng nhập. Nút Đăng xuất trong mục **Cài đặt** vẫn giữ nguyên như trước.
 
 **Lưu ý:** Sub Admin **không** được cấp quyền Sub Admin cho người khác và **không** được sửa/khóa/đặt lại mật khẩu tài khoản Super Admin.
 
@@ -133,6 +137,7 @@ Bấm **Lưu**: hệ thống **tự động giao nhiệm vụ** cho toàn bộ C
 - **Tỷ lệ duy trì chia sẻ:** số link còn tồn tại khi chốt tháng / số link từng xác minh hợp lệ — đơn vị chia sẻ nhiều nhưng xóa bài sớm sẽ lộ ở chỉ số này.
 - **So sánh tháng:** bảng đối chiếu tháng này với tháng trước, đơn vị tăng/giảm mạnh nhất.
 - **Điểm tin truyền thông:** hệ thống tự sinh đoạn văn ngắn tổng kết tháng, bấm **Copy** để gửi nhóm điều hành.
+- **Giám sát đơn vị:** chọn đơn vị trong ô chọn rồi bấm **Xem bảng** để xem bảng CBCNV × bài của đơn vị đó. User có phạm vi toàn tỉnh (Super Admin, Sub Admin, Admin truyền thông, lãnh đạo đơn vị gốc hoặc lãnh đạo đơn vị "Ban lãnh đạo") thấy thêm lựa chọn **"🏢 VNPT Quảng Ninh (toàn tỉnh)"** ở đầu danh sách — chọn mục này để xem bảng tổng hợp toàn tỉnh; mặc định cũng mở sẵn mục này. Lãnh đạo đơn vị con chỉ thấy đúng đơn vị của mình trong ô chọn.
 - **Đơn vị cần quan tâm / CBCNV chưa thực hiện:** danh sách xếp theo mức độ — 0% trước, rồi <30%, 30–<70%, ≥70%, 100%.
 - **Xuất Excel:** nút xuất báo cáo theo toàn tỉnh / đơn vị / CBCNV / bài / tháng.
 

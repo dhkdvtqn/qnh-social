@@ -306,24 +306,40 @@ const ERR_PERSONNEL_READONLY = "Vai trò Admin truyền thông chỉ được xe
 const ERR_UNITS_READONLY = "Vai trò Admin truyền thông chỉ được xem, không được thêm/sửa/xóa đơn vị";
 const isLeader = (u) => u && u.role === "leader";
 // Lãnh đạo theo nhóm đối tượng (đính chính 09/11/2026): user được xem số
-// liệu theo cây đơn vị khi role == 'leader' HOẶC hồ sơ CBCNV gắn với tài
-// khoản có Nhóm đối tượng == 'Lãnh đạo'. Nhóm 'Chuyên viên' KHÔNG được
-// quyền này. Phạm vi = đơn vị của người đó + toàn bộ đơn vị trực thuộc;
-// chỉ khi đơn vị là gốc VNPT Quảng Ninh thì cây con bao toàn tỉnh.
+// liệu khi role == 'leader' HOẶC hồ sơ CBCNV gắn với tài khoản có Nhóm
+// đối tượng == 'Lãnh đạo'. Nhóm 'Chuyên viên' KHÔNG được quyền này.
+// Phạm vi (siết 09/11/2026): lãnh đạo chỉ xem ĐÚNG đơn vị của mình,
+// không bao gồm đơn vị con; chỉ lãnh đạo đơn vị gốc VNPT Quảng Ninh
+// hoặc đơn vị "Ban lãnh đạo" mới xem toàn tỉnh.
 async function isLeaderLike(env, user, emp) {
   if (isLeader(user)) return true;
   const e = emp || await myEmployee(env, user);
   return !!e && e.group_name === "Lãnh đạo";
 }
 // Phạm vi đơn vị được xem (để lọc báo cáo so sánh tháng): admin = null
-// (toàn tỉnh); lãnh đạo (role hoặc nhóm) = cây đơn vị mình; CBCNV = chỉ
-// đơn vị của chính mình.
+// (toàn tỉnh); lãnh đạo (role hoặc nhóm) = CHỈ ĐÚNG đơn vị của mình —
+// KHÔNG bao gồm đơn vị con (siết 09/11/2026); ngoại lệ: lãnh đạo đơn vị
+// gốc VNPT Quảng Ninh hoặc đơn vị "Ban lãnh đạo" thì xem toàn tỉnh
+// (null); CBCNV = chỉ đơn vị của chính mình.
 async function visibleUnitIds(env, user) {
   if (isAdmin(user)) return null;
   const emp = await myEmployee(env, user);
   if (!emp || !emp.unit_id) return [];
-  if (await isLeaderLike(env, user, emp)) return await unitSubtreeIds(env, emp.unit_id);
+  if (await isLeaderLike(env, user, emp)) {
+    if (await isProvinceWideLeader(env, emp)) return null;
+    return [emp.unit_id];
+  }
   return [emp.unit_id];
+}
+// Lãnh đạo xem TOÀN TỈNH chỉ trong 2 trường hợp: đơn vị của họ là đơn vị
+// gốc VNPT Quảng Ninh (parent_id NULL / is_root = 1) HOẶC đơn vị có tên
+// "Ban lãnh đạo" (khớp không dấu, không phân biệt hoa thường).
+async function isProvinceWideLeader(env, emp) {
+  if (!emp || !emp.unit_id) return false;
+  const unit = await env.DB.prepare("SELECT * FROM units WHERE id = ?").bind(emp.unit_id).first();
+  if (!unit) return false;
+  if (!unit.parent_id || unit.is_root) return true;
+  return normAnswer(unit.name) === "ban lanh dao";
 }
 // Vai trò mặc định cho 1 nhân sự khi tạo mới: tick SubAdmin -> sub_admin;
 // Nhóm "Lãnh đạo" -> leader; còn lại -> employee. Form tự điền sẵn theo
@@ -352,7 +368,9 @@ function publicUser(u) {
 }
 async function myEmployee(env, user) {
   if (!user.employee_id) return null;
-  return await env.DB.prepare("SELECT * FROM employees WHERE id = ?").bind(user.employee_id).first();
+  return await env.DB.prepare(
+    "SELECT e.*, u.name AS unit_name FROM employees e LEFT JOIN units u ON u.id = e.unit_id WHERE e.id = ?"
+  ).bind(user.employee_id).first();
 }
 // Cây đơn vị: tất cả unit_id con của unitId (kể cả chính nó).
 async function unitSubtreeIds(env, unitId) {
@@ -366,7 +384,9 @@ async function unitSubtreeIds(env, unitId) {
   }
   return ids;
 }
-// Phạm vi nhân viên được xem: admin = toàn tỉnh; lãnh đạo = cây đơn vị mình;
+// Phạm vi nhân viên được xem: admin = toàn tỉnh; lãnh đạo = CHỈ nhân viên
+// trong đúng đơn vị mình (siết 09/11/2026 — không gồm đơn vị con), trừ
+// lãnh đạo đơn vị gốc / "Ban lãnh đạo" thì toàn tỉnh (null);
 // CBCNV = chỉ chính mình. Trả null nghĩa là "toàn bộ".
 async function visibleEmployeeIds(env, user) {
   if (isAdmin(user)) return null;
@@ -374,10 +394,10 @@ async function visibleEmployeeIds(env, user) {
   if (!emp) return [];
   if (await isLeaderLike(env, user, emp)) {
     if (!emp.unit_id) return [emp.id]; // lãnh đạo chưa gắn đơn vị: chỉ thấy chính mình
-    const unitIds = await unitSubtreeIds(env, emp.unit_id);
+    if (await isProvinceWideLeader(env, emp)) return null;
     const rows = (await env.DB.prepare(
-      `SELECT id FROM employees WHERE unit_id IN (${unitIds.map(() => "?").join(",")})`
-    ).bind(...unitIds).all()).results || [];
+      "SELECT id FROM employees WHERE unit_id = ?"
+    ).bind(emp.unit_id).all()).results || [];
     return rows.map((r) => r.id);
   }
   return [emp.id];
@@ -684,10 +704,14 @@ export default {
     // ================= Đơn vị (units) =================
     if (path === "/api/units" && request.method === "GET") {
       const includeRoot = url.searchParams.get("include_root") === "1";
-      const rows = (await env.DB.prepare(
+      let rows = (await env.DB.prepare(
         "SELECT id, name, parent_id, sort_order, is_root FROM units " +
         (includeRoot ? "" : "WHERE is_root = 0 ") + "ORDER BY sort_order, name"
       ).all()).results || [];
+      // Lãnh đạo chỉ thấy đơn vị trong phạm vi của mình (đúng đơn vị mình;
+      // toàn tỉnh thì thấy hết); CBCNV chỉ thấy đơn vị của chính mình.
+      const vUnits = await visibleUnitIds(env, me);
+      if (vUnits !== null) rows = rows.filter((r) => vUnits.includes(r.id));
       return json(env, { ok: true, units: rows });
     }
     if (path === "/api/admin/units" && request.method === "POST") {
@@ -1286,13 +1310,18 @@ export default {
       const subByKey = new Map(submissions.map((s) => [s.post_id + ":" + s.employee_id, s]));
       const scores = scoreEmployees(assignments, subByKey, postsById);
       // Nếu tháng đã chốt: đọc snapshot chính thức thay vì tính trực tiếp.
+      // Snapshot cũng phải lọc theo phạm vi người xem (lãnh đạo chỉ thấy
+      // đơn vị mình) — không được trả cả tỉnh cho lãnh đạo đơn vị con.
       let finalScores = null;
       if (locked) {
         const rows = (await env.DB.prepare("SELECT * FROM monthly_final_results WHERE month = ?").bind(month).all()).results || [];
-        finalScores = new Map(rows.map((r) => [r.employee_id, {
-          assigned_count: r.assigned_count, valid_count: r.valid_count, submitted_count: r.submitted_count,
-          invalid_count: r.invalid_count, assigned_points: r.assigned_points, valid_points: r.valid_points,
-          rate: r.rate, grade: r.grade }]));
+        const visSet = visible === null ? null : new Set(visible);
+        finalScores = new Map(rows
+          .filter((r) => visSet === null || visSet.has(r.employee_id))
+          .map((r) => [r.employee_id, {
+            assigned_count: r.assigned_count, valid_count: r.valid_count, submitted_count: r.submitted_count,
+            invalid_count: r.invalid_count, assigned_points: r.assigned_points, valid_points: r.valid_points,
+            rate: r.rate, grade: r.grade }]));
       }
       const useScores = finalScores || scores;
       const empIds = [...useScores.keys()];
@@ -1376,19 +1405,32 @@ export default {
         news });
     }
     // Dashboard đơn vị: bảng CBCNV × bài (✓/×) + tỷ lệ.
+    // unit_id = đơn vị gốc (VNPT Quảng Ninh) nghĩa là TOÀN TỈNH: chỉ user
+    // có phạm vi toàn tỉnh (admin, lãnh đạo đơn vị gốc / "Ban lãnh đạo")
+    // mới xem được; lãnh đạo đơn vị con chỉ xem đúng đơn vị mình.
     if (path === "/api/dashboard/unit" && request.method === "GET") {
       const month = validMonth(url.searchParams.get("month")) ? url.searchParams.get("month") : new Date().toISOString().slice(0, 7);
       const unitId = Number(url.searchParams.get("unit_id") || 0);
       if (!unitId) return err(env, "Thiếu unit_id", 422);
-      const emp = await myEmployee(env, me);
-      if (!isAdmin(me) && !(emp && emp.unit_id && (await isLeaderLike(env, me, emp)) && (await unitSubtreeIds(env, emp.unit_id)).includes(unitId)))
-        return err(env, "Chỉ xem được đơn vị trong phạm vi của anh/chị", 403);
       const unit = await env.DB.prepare("SELECT * FROM units WHERE id = ?").bind(unitId).first();
+      if (!unit) return err(env, "Không tìm thấy đơn vị", 404);
+      // Chỉ lãnh đạo (role hoặc nhóm "Lãnh đạo") và quản trị mới được xem
+      // bảng đơn vị; CBCNV/Chuyên viên chỉ xem dữ liệu của chính mình.
+      const emp = await myEmployee(env, me);
+      if (!isAdmin(me) && !(await isLeaderLike(env, me, emp)))
+        return err(env, "Chỉ lãnh đạo và quản trị mới xem được bảng đơn vị", 403);
+      const vUnits = await visibleUnitIds(env, me);
+      if (vUnits !== null && !vUnits.includes(unitId))
+        return err(env, "Chỉ xem được đơn vị trong phạm vi của anh/chị", 403);
       const posts = (await env.DB.prepare("SELECT * FROM posts WHERE month = ? ORDER BY deadline, id").bind(month).all()).results || [];
       const postIds = posts.map((p) => p.id);
-      const emps = (await env.DB.prepare(
-        "SELECT * FROM employees WHERE unit_id = ? AND status='working' ORDER BY full_name"
-      ).bind(unitId).all()).results || [];
+      // Đơn vị gốc = toàn tỉnh: mọi CBCNV đang làm việc (đến đây phạm vi
+      // đã là toàn tỉnh vì vUnits === null); ngược lại chỉ CBCNV của đơn vị đó.
+      const emps = unit.is_root
+        ? (await env.DB.prepare("SELECT * FROM employees WHERE status='working' ORDER BY full_name").all()).results || []
+        : (await env.DB.prepare(
+            "SELECT * FROM employees WHERE unit_id = ? AND status='working' ORDER BY full_name"
+          ).bind(unitId).all()).results || [];
       const empIds = emps.map((e) => e.id);
       let assignments = [], submissions = [];
       if (postIds.length && empIds.length) {
@@ -1511,6 +1553,12 @@ export default {
       }
       if (unitId) rows = rows.filter((r) => String(r.unit_id) === String(unitId));
       if (employeeId) rows = rows.filter((r) => String(r.employee_id) === String(employeeId));
+      // Tháng đã chốt đọc từ snapshot — cũng phải lọc theo phạm vi người
+      // xem (lãnh đạo chỉ thấy đơn vị mình), kể cả khi đã lọc unit_id.
+      if (visible !== null) {
+        const visSet = new Set(visible);
+        rows = rows.filter((r) => visSet.has(r.employee_id));
+      }
       rows.sort((a, b) => b.rate - a.rate);
       // Chi tiết từng minh chứng (để xuất theo bài / đối soát).
       const detail = submissions.map((s) => {
