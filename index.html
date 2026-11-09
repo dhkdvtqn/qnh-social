@@ -306,51 +306,42 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
 
     <section id="view-personnel" class="view hidden">
       <h2>👥 Quản lý nhân sự</h2>
-      <div class="tabs"><button id="tabBtnEmps" type="button" class="on" onclick="showPersonnelTab('emps')">👥 CBCNV</button><button id="tabBtnAccounts" type="button" onclick="showPersonnelTab('accounts')">🛡️ Tài khoản người dùng</button></div>
-      <div id="tab-emps">
-        <div class="card">
-          <div class="row"><input id="empSearch" type="search" placeholder="Tìm mã NV, họ tên, SĐT…"><select id="empUnitFilter"><option value="">Tất cả đơn vị</option></select><select id="empStatusFilter"><option value="">Tất cả trạng thái</option><option value="working">Đang làm việc</option><option value="left">Nghỉ</option></select></div>
-          <div style="margin-top:10px"><button class="btn primary" id="btnLoadEmps" type="button">Tìm</button></div>
-        </div>
-        <div class="card"><h3 id="empFormTitle">Thêm CBCNV</h3>
-          <div class="row"><div><label>Mã nhân viên *</label><input id="empCode" placeholder="VD: NV001"></div><div><label>Họ tên *</label><input id="empName" placeholder="Nguyễn Văn A"></div></div>
-          <div class="row"><div><label>Đơn vị</label><select id="empUnit"></select></div><div><label>Chức danh</label><input id="empTitle" placeholder="VD: Nhân viên kinh doanh"></div></div>
-          <div class="row"><div><label>Nhóm đối tượng</label><select id="empGroup"><option value="">—</option><option>Lãnh đạo</option><option>Chuyên viên</option><option>NVKD</option><option>NVKT</option><option>Khác</option></select></div><div><label>Trạng thái</label><select id="empStatus"><option value="working">Đang làm việc</option><option value="left">Nghỉ</option></select></div></div>
-          <div class="row"><div><label>Email</label><input id="empEmail" placeholder="email@vnpt.vn"></div><div><label>Số điện thoại</label><input id="empPhone" placeholder="0987654321"></div></div>
-          <label>Link Facebook cá nhân (tùy chọn)</label><input id="empFb" placeholder="https://www.facebook.com/...">
-          <div class="row" style="margin-top:14px"><button class="btn primary" id="btnAddEmp" type="button">Thêm CBCNV</button><button class="btn hidden" id="btnCancelEmp" type="button">Hủy sửa</button></div>
-        </div>
-        <div class="card"><h3>Import CBCNV từ Excel/CSV</h3>
-          <p class="muted">Hỗ trợ .xlsx, .csv. File không cần đúng mẫu: anh ánh xạ cột ở bước dưới. Hệ thống đọc cell theo kiểu dữ liệu gốc (số giữ nguyên, không strip dấu chấm/phẩy ở cell số).</p>
-          <div class="row"><div><button class="btn" id="btnEmpTemplate" type="button">⬇ Tải file mẫu import</button></div><div><input id="empFile" type="file" accept=".xlsx,.xls,.csv"></div></div>
-          <div id="empMap" class="hidden">
-            <h3 style="margin-top:14px">Ánh xạ cột <span class="muted">(bảng đối chiếu — kiểm tra trước khi import)</span></h3>
-            <div id="empMapRows"></div>
-            <p id="empDropped" class="muted" style="margin-top:8px"></p>
-            <div class="row" style="margin-top:10px">
-              <div><label>Chế độ import</label><select id="empMode"><option value="create">Tạo mới (bỏ qua mã đã có)</option><option value="update">Cập nhật (mã đã có thì ghi đè)</option><option value="replace">Thay thế toàn bộ danh sách</option></select></div>
-            </div>
-            <div style="margin-top:12px"><button class="btn primary block" id="btnDoEmpImport" type="button">Import CBCNV</button></div>
-          </div>
-          <p id="empImpMsg" class="muted" style="margin-top:10px"></p>
-          <h3 style="margin-top:14px">Xem trước (10 dòng đầu)</h3><div class="tablewrap"><table><thead id="empImpHead"></thead><tbody id="empImpPreview"></tbody></table></div>
-        </div>
-        <div class="card"><div id="empList"></div></div>
+      <div class="card">
+        <div class="row"><input id="perSearch" type="search" placeholder="Tìm mã NV, họ tên, user đăng nhập, email, SĐT…"><select id="perUnitFilter"><option value="">Tất cả đơn vị</option></select><select id="perStatusFilter"><option value="">Tất cả trạng thái</option><option value="working">Đang làm việc</option><option value="left">Nghỉ</option></select><select id="perAccountFilter"><option value="">Tất cả tài khoản</option><option value="yes">Đã có tài khoản</option><option value="no">Chưa có tài khoản</option></select></div>
+        <div style="margin-top:10px"><button class="btn primary" id="btnLoadPersonnel" type="button">Tìm</button></div>
       </div>
-      <div id="tab-accounts" class="hidden">
-        <div class="card"><h3>Thống kê hệ thống</h3><div id="adminStats" class="muted">—</div></div>
-        <div class="card"><h3>Tạo tài khoản</h3>
-          <p class="muted">Tài khoản CBCNV/Lãnh đạo <b>bắt buộc gắn mã nhân viên</b> (để nhận nhiệm vụ); admin thuần để trống mã. Mật khẩu mặc định là <b>Vnpt@2026</b> — người dùng phải đổi mật khẩu và đặt câu hỏi bí mật ở lần đăng nhập đầu tiên.</p>
-          <div class="row"><div><label>Email hoặc SĐT *</label><input id="admIdent" placeholder="email@vd.com hoặc 0987654321"></div><div><label>Họ tên</label><input id="admName"></div></div>
-          <div class="row"><div><label>Mật khẩu ban đầu *</label><input id="admPass" type="password" value="Vnpt@2026" placeholder="Tối thiểu 6 ký tự"></div><div><label>Vai trò</label><select id="admRole"><option value="employee">CBCNV</option><option value="leader">Lãnh đạo đơn vị</option><option value="admin">Admin truyền thông</option><option value="sub_admin">Sub Admin</option><option value="super_admin">Super admin</option></select></div></div>
-          <label>Mã nhân viên gắn với tài khoản (để trống = admin thuần)</label><input id="admEmpCode" placeholder="VD: NV001">
-          <div style="margin-top:12px"><button class="btn primary block" id="btnAddUser" type="button">Tạo tài khoản</button></div>
+      <div class="card"><h3 id="perFormTitle">Thêm nhân sự mới</h3>
+        <p class="muted">Một form tạo đồng thời <b>hồ sơ CBCNV</b> và <b>tài khoản đăng nhập</b> đã gắn mã NV với nhau. Để trống <b>Mã NV</b> nếu chỉ tạo tài khoản admin thuần (không gắn CBCNV). Tài khoản mới dùng mật khẩu mặc định <b>Vnpt@2026</b>, đăng nhập lần đầu phải đổi mật khẩu và đặt câu hỏi bí mật.</p>
+        <div class="row"><div><label>Mã nhân viên</label><input id="perCode" placeholder="VD: NV001 — để trống = tài khoản admin thuần"></div><div><label>Họ tên *</label><input id="perName" placeholder="Nguyễn Văn A"></div></div>
+        <div class="row"><div><label>User đăng nhập *</label><input id="perLogin" placeholder="email@vnpt.vn hoặc 0987654321"></div><div><label>Mật khẩu</label><input id="perPass" type="password" value="Vnpt@2026" placeholder="Tối thiểu 6 ký tự"></div></div>
+        <div class="row"><div><label>Đơn vị</label><select id="perUnit"></select></div><div><label>Chức danh</label><input id="perTitle" placeholder="VD: Nhân viên kinh doanh"></div></div>
+        <div class="row"><div><label>Nhóm đối tượng</label><select id="perGroup"><option value="">—</option><option>Lãnh đạo</option><option>Chuyên viên</option><option>NVKD</option><option>NVKT</option><option>Khác</option></select></div><div><label>Trạng thái</label><select id="perStatus"><option value="working">Đang làm việc</option><option value="left">Nghỉ</option></select></div></div>
+        <div class="row"><div><label>Email liên hệ</label><input id="perEmail" placeholder="email@vnpt.vn"></div><div><label>Số điện thoại liên hệ</label><input id="perPhone" placeholder="0987654321"></div></div>
+        <label>Link Facebook cá nhân (tùy chọn)</label><input id="perFb" placeholder="https://www.facebook.com/...">
+        <div class="row"><div><label>Vai trò</label><select id="perRole"><option value="employee">CBCNV</option><option value="leader">Lãnh đạo đơn vị</option><option value="admin">Admin truyền thông</option><option value="sub_admin">Sub Admin</option><option value="super_admin">Super admin</option></select></div><div><label>Quyền SubAdmin</label><label style="font-weight:normal;margin:0;display:flex;gap:8px;align-items:center;min-height:48px"><input type="checkbox" id="perSubAdmin" style="width:auto;min-height:auto"> Cấp quyền SubAdmin</label><p class="muted small">Tick = vai trò Sub Admin (chỉ super_admin tick được). Bỏ tick thì vai trò suy ra từ Nhóm: "Lãnh đạo" → Lãnh đạo đơn vị, còn lại → CBCNV.</p></div></div>
+        <div class="row" style="margin-top:14px"><button class="btn primary" id="btnSavePerson" type="button">Thêm nhân sự</button><button class="btn hidden" id="btnCancelPerson" type="button">Hủy sửa</button><button class="btn hidden" id="btnResetPersonPass" type="button">🔑 Đặt lại MK về Vnpt@2026</button></div>
+        <p id="perFormMsg" class="muted" style="margin-top:8px"></p>
+      </div>
+      <div class="card"><h3>Import nhân sự từ Excel/CSV</h3>
+        <p class="muted">Hỗ trợ .xlsx, .csv. File không cần đúng mẫu: anh ánh xạ cột ở bước dưới. Hệ thống đọc cell theo kiểu dữ liệu gốc (số giữ nguyên, không strip dấu chấm/phẩy ở cell số). Dòng nào có <b>Email hoặc SĐT hợp lệ sẽ tự tạo luôn tài khoản đăng nhập</b> (mật khẩu mặc định Vnpt@2026, bắt buộc đổi ở lần đăng nhập đầu); dòng không có Email/SĐT thì chỉ tạo hồ sơ, ghi rõ "Chưa có tài khoản".</p>
+        <div class="row"><div><button class="btn" id="btnEmpTemplate" type="button">⬇ Tải file mẫu import</button></div><div><input id="empFile" type="file" accept=".xlsx,.xls,.csv"></div></div>
+        <div id="empMap" class="hidden">
+          <h3 style="margin-top:14px">Ánh xạ cột <span class="muted">(bảng đối chiếu — kiểm tra trước khi import)</span></h3>
+          <div id="empMapRows"></div>
+          <p id="empDropped" class="muted" style="margin-top:8px"></p>
+          <div class="row" style="margin-top:10px">
+            <div><label>Chế độ import</label><select id="empMode"><option value="create">Tạo mới (bỏ qua mã đã có)</option><option value="update">Cập nhật (mã đã có thì ghi đè)</option><option value="replace">Thay thế toàn bộ danh sách</option></select></div>
+          </div>
+          <div style="margin-top:12px"><button class="btn primary block" id="btnDoEmpImport" type="button">Import nhân sự</button></div>
         </div>
-        <div class="card"><h3>Người dùng</h3><div id="adminUsers"></div></div>
-        <div class="card"><h3>📜 Nhật ký hệ thống (Audit log)</h3>
-          <div class="row"><select id="auditAction"><option value="">Tất cả thao tác</option><option value="manual_verify">Xác nhận thủ công</option><option value="unlock_month">Mở khóa tháng</option><option value="close_month_finalize">Chốt tháng</option><option value="delete_submission">Xóa minh chứng</option><option value="edit_result">Sửa kết quả</option><option value="admin_reset_password">Admin đặt lại MK</option><option value="edit_user">Sửa tài khoản</option><option value="edit_employee">Sửa CBCNV</option><option value="delete_employee">Xóa CBCNV</option><option value="edit_unit">Sửa đơn vị</option><option value="delete_unit">Xóa đơn vị</option></select><button class="btn" id="btnLoadAudit" type="button">Xem</button></div>
-          <div id="auditList" style="margin-top:10px"></div>
-        </div>
+        <p id="empImpMsg" class="muted" style="margin-top:10px"></p>
+        <h3 style="margin-top:14px">Xem trước (10 dòng đầu)</h3><div class="tablewrap"><table><thead id="empImpHead"></thead><tbody id="empImpPreview"></tbody></table></div>
+      </div>
+      <div class="card"><h3>Thống kê hệ thống</h3><div id="adminStats" class="muted">—</div></div>
+      <div class="card"><div id="perList"></div></div>
+      <div class="card"><h3>📜 Nhật ký hệ thống (Audit log)</h3>
+        <div class="row"><select id="auditAction"><option value="">Tất cả thao tác</option><option value="manual_verify">Xác nhận thủ công</option><option value="unlock_month">Mở khóa tháng</option><option value="close_month_finalize">Chốt tháng</option><option value="delete_submission">Xóa minh chứng</option><option value="edit_result">Sửa kết quả</option><option value="admin_reset_password">Admin đặt lại MK</option><option value="create_user">Tạo tài khoản</option><option value="edit_user">Sửa tài khoản</option><option value="delete_user">Xóa tài khoản</option><option value="create_personnel">Tạo nhân sự</option><option value="update_personnel">Sửa nhân sự</option><option value="delete_personnel">Xóa nhân sự</option><option value="import_employees">Import nhân sự</option><option value="edit_employee">Sửa CBCNV</option><option value="delete_employee">Xóa CBCNV</option><option value="edit_unit">Sửa đơn vị</option><option value="delete_unit">Xóa đơn vị</option></select><button class="btn" id="btnLoadAudit" type="button">Xem</button></div>
+        <div id="auditList" style="margin-top:10px"></div>
       </div>
     </section>
 
@@ -436,23 +427,6 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
   </div>
 </div>
 
-<!-- ===== MODAL SỬA TÀI KHOẢN (gắn mã NV / đổi vai trò) ===== -->
-<div id="userModal" class="modal hidden">
-  <div class="sheet">
-    <h2>Sửa tài khoản</h2>
-    <p class="muted" id="userModalInfo"></p>
-    <label>Họ tên</label><input id="editUserName">
-    <label>Vai trò</label><select id="editUserRole"><option value="employee">CBCNV</option><option value="leader">Lãnh đạo đơn vị</option><option value="admin">Admin truyền thông</option><option value="sub_admin">Sub Admin</option><option value="super_admin">Super admin</option></select>
-    <label>Mã nhân viên gắn với tài khoản</label><input id="editUserEmpCode" placeholder="VD: NV001 — để trống để gỡ gắn">
-    <p class="muted" style="margin-top:8px">Một mã nhân viên chỉ gắn tối đa 1 tài khoản. Để trống là gỡ gắn — tài khoản sẽ không nhận nhiệm vụ chia sẻ cho đến khi gắn lại. Chỉ super_admin được gán/thu hồi quyền Sub Admin và sửa tài khoản super_admin.</p>
-    <div class="row" style="margin-top:16px">
-      <button class="btn primary" id="btnDoEditUser" type="button">Lưu thay đổi</button>
-      <button class="btn" id="btnCloseUserModal" type="button">Đóng</button>
-    </div>
-    <p id="userModalMsg" class="muted" style="margin-top:8px"></p>
-  </div>
-</div>
-
 <!-- ===== MENU ĐIỆN THOẠI ===== -->
 <div id="menuModal" class="modal hidden">
   <div class="sheet">
@@ -482,10 +456,11 @@ function isAdminRole(){const u=me();return u&&(u.role==="admin"||u.role==="sub_a
 function isSuperAdminRole(){const u=me();return u&&u.role==="super_admin";}
 function roleLabel(r){return {super_admin:"Super Admin",admin:"Admin truyền thông",sub_admin:"Sub Admin",leader:"Lãnh đạo đơn vị",employee:"CBCNV"}[r]||r;}
 // Chỉ super_admin được gán/thu hồi Sub Admin và Super admin: khóa (disable)
-// 2 lựa chọn đó trong các select vai trò khi người đang dùng không phải super_admin.
+// 2 lựa chọn đó trong select vai trò và khóa checkbox SubAdmin khi người
+// đang dùng không phải super_admin.
 function filterRoleSelects(){
   const isSA=isSuperAdminRole();
-  ["admRole","editUserRole"].forEach(function(id){
+  ["perRole"].forEach(function(id){
     const el=$(id);if(!el)return;
     Array.from(el.options).forEach(function(o){
       // Bật lại trước (trường hợp đăng nhập lại bằng tài khoản khác trong cùng phiên),
@@ -494,6 +469,7 @@ function filterRoleSelects(){
       if((o.value==="sub_admin"||o.value==="super_admin")&&!isSA)o.disabled=true;
     });
   });
+  const cb=$("perSubAdmin");if(cb)cb.disabled=!isSA;
 }
 function statusPill(t){
   if(t==="verified")return '<span class="pill ok">✓ Đã xác nhận</span>';
@@ -517,11 +493,11 @@ async function api(path,opts){
 function logout(silent){
   localStorage.removeItem(LS_TOKEN);localStorage.removeItem(LS_USER);
   if(!silent){api("/api/auth/logout",{method:"POST"}).catch(function(){});}
-  state.user=null;showApp(false);
+  state.user=null;state.myEmp=null;showApp(false);
 }
 
 /* ================= State & điều hướng ================= */
-const state={user:null,units:[],unitsAll:[],campaigns:[],posts:[],view:"dashboard",personnelTab:"emps",submitPostId:null,manualSubId:null,closeFilter:"all",repRows:[],repDetail:[],repPosts:[],empImpRows:[],empImpHeaders:[],empImpCells:[],emps:[],adminUsers:[],editEmpId:null,editUnitId:null,editUserId:null};
+const state={user:null,myEmp:null,units:[],unitsAll:[],campaigns:[],posts:[],view:"dashboard",submitPostId:null,manualSubId:null,closeFilter:"all",repRows:[],repDetail:[],repPosts:[],empImpRows:[],empImpHeaders:[],empImpCells:[],personnel:[],perEdit:null,editUnitId:null};
 const NAV=[
   ["dashboard","🏠","Tổng quan"],["tasks","✅","Nhiệm vụ của tôi"],["campaigns","🎯","Chiến dịch"],
   ["posts","📰","Bài truyền thông"],["monitor","🔎","Giám sát đơn vị"],["attention","🔴","Cần quan tâm"],
@@ -533,11 +509,15 @@ function navVisible(it){
   if(it[0]==="personnel")return isAdminRole();
   if(it[0]==="campaigns"||it[0]==="posts"||it[0]==="units"||it[0]==="close")return isAdminRole();
   if(it[0]==="tasks")return true;
-  // CBCNV chỉ thấy Tổng quan (số liệu cá nhân) + Nhiệm vụ của tôi + Thông báo + Cài đặt.
-  // Giám sát đơn vị / Cần quan tâm / Báo cáo là số liệu đơn vị-toàn tỉnh, không cho CBCNV xem.
-  if(it[0]==="monitor"||it[0]==="attention"||it[0]==="reports")return u.role!=="employee";
+  // Giám sát đơn vị / Cần quan tâm / Báo cáo là số liệu đơn vị-toàn tỉnh:
+  // CBCNV không xem; lãnh đạo (role leader HOẶC nhóm đối tượng "Lãnh đạo"
+  // trong hồ sơ CBCNV gắn với tài khoản) được xem theo cây đơn vị mình.
+  if(it[0]==="monitor"||it[0]==="attention"||it[0]==="reports")return u.role!=="employee"||isLeaderLikeFE();
   return true;
 }
+// Lãnh đạo theo nhóm đối tượng: role == 'leader' HOẶC hồ sơ CBCNV gắn với
+// tài khoản có Nhóm đối tượng == 'Lãnh đạo'. Nhóm 'Chuyên viên' không tính.
+function isLeaderLikeFE(){const u=state.user;return !!(u&&(u.role==="leader"||(state.myEmp&&state.myEmp.group_name==="Lãnh đạo")));}
 function buildNav(){
   const sb=$("sidebar");
   sb.innerHTML='<div class="brand">📣 QNH Social</div><p class="muted">Giám sát chia sẻ truyền thông<br>VNPT Quảng Ninh</p>';
@@ -578,25 +558,16 @@ function go(view){
   if(view==="attention")loadAttention();
   if(view==="close")loadClose();
   if(view==="reports")loadReports();
-  if(view==="personnel")showPersonnelTab(state.personnelTab||"emps");
+  if(view==="personnel")loadPersonnel();
   if(view==="units")loadUnits();
   if(view==="notifs")loadNotifs();
   if(view==="settings")fillSettings();
   window.scrollTo(0,0);
 }
-/* ================= Quản lý nhân sự: 2 tab trong 1 panel ================= */
-// Module "Quản lý nhân sự" gộp 2 mục cũ "CBCNV" + "Quản trị": tab "CBCNV"
-// (thêm/sửa/xóa CBCNV, import Excel) và tab "Tài khoản người dùng"
-// (tạo tài khoản, gắn mã NV, cấp sub_admin, đặt lại MK, khóa/mở khóa, audit log).
-function showPersonnelTab(tab){
-  state.personnelTab=tab;
-  show("tab-emps",tab==="emps");show("tab-accounts",tab==="accounts");
-  $("tabBtnEmps").classList.toggle("on",tab==="emps");
-  $("tabBtnAccounts").classList.toggle("on",tab==="accounts");
-  if(tab==="emps"){loadUnitsIntoSelects();loadEmps();}else{loadAdmin();}
-}
-// Mở module Quản lý nhân sự ở đúng tab (để các nơi khác điều hướng tới).
-function goPersonnel(tab){state.personnelTab=tab||"emps";go("personnel");}
+/* ================= Quản lý nhân sự: 1 module duy nhất, không chia tab ================= */
+// Một form duy nhất tạo đồng thời hồ sơ CBCNV + tài khoản đăng nhập đã gắn
+// mã NV; 1 danh sách thống nhất (hồ sơ + tài khoản); import tự tạo tài
+// khoản. Các hàm ở mục "Quản lý nhân sự" phía dưới (loadPersonnel, ...).
 function showApp(on){
   show("firstLoginView",false);
   show("authView",!on);show("appView",on);
@@ -635,6 +606,9 @@ async function doLogin(){
     const d=await api("/api/auth/login",{method:"POST",body:{identifier:$("loginIdent").value.trim(),password:$("loginPass").value}});
     localStorage.setItem(LS_TOKEN,d.token);localStorage.setItem(LS_USER,JSON.stringify(d.user));
     state.user=d.user;
+    // Hồ sơ CBCNV gắn với tài khoản (để biết Nhóm đối tượng — dùng cho
+    // phân quyền lãnh đạo theo nhóm và hiển thị menu).
+    try{const m=await api("/api/me");state.myEmp=m.employee||null;}catch(e){state.myEmp=null;}
     // Tài khoản do admin tạo (must_change_password=1) hoặc chưa có câu hỏi
     // bí mật (đóng tab giữa chừng ở lần đầu) thì chặn ở màn hình đổi MK
     // lần đầu, không cho vào hệ thống.
@@ -717,18 +691,28 @@ async function doFirstSecQ(){
     finishFirstLogin();
   }catch(e){$("flMsg").textContent=e.message;}
 }
-function finishFirstLogin(){
+async function finishFirstLogin(){
   const u=Object.assign({},state.user,{must_change_password:0});
   state.user=u;localStorage.setItem(LS_USER,JSON.stringify(u));
+  try{const m=await api("/api/me");state.myEmp=m.employee||null;state.user=m.user;localStorage.setItem(LS_USER,JSON.stringify(m.user));}catch(e){}
   show("firstLoginView",false);showApp(true);toast("Chào mừng anh đến với QNH Social");
 }
 
 /* ================= Dùng chung ================= */
-async function loadUnits(){
+// Tải danh sách đơn vị 1 lần rồi dùng lại (form nhân sự, các bộ lọc…).
+// Trước đây loadUnits() chỉ chạy khi mở view "Đơn vị" nên các select đơn
+// vị ở module khác có thể trống — nay đảm bảo tải trước khi dùng.
+async function ensureUnits(){
+  if(state.units.length)return;
   try{
     const d=await api("/api/units");
     state.units=d.units||[];
     try{const da=await api("/api/units?include_root=1");state.unitsAll=da.units||[];}catch(e){state.unitsAll=state.units;}
+  }catch(e){/* bỏ qua — select đơn vị sẽ trống, thao tác khác vẫn chạy */}
+}
+async function loadUnits(){
+  try{
+    await ensureUnits();
     const byId={};(state.unitsAll||[]).forEach(function(u){byId[u.id]=u.name;});
     $("unitList").innerHTML=state.units.map(function(u){
       return '<div class="list-item"><div class="ic">🏢</div><div class="mid"><div class="t">'+esc(u.name)+'</div><div class="s">ID '+u.id+' · Đơn vị cha: '+esc(byId[u.parent_id]||"—")+' · Thứ tự: '+u.sort_order+'</div></div><div><button class="btn small" type="button" onclick="editUnit('+u.id+')">✏️ Sửa</button> <button class="btn small danger" type="button" onclick="deleteUnit('+u.id+')">🗑 Xóa</button></div></div>';
@@ -784,14 +768,26 @@ async function deleteUnit(id){
   try{await api("/api/admin/units/"+id,{method:"DELETE"});toast("Đã xóa đơn vị");loadUnits();}
   catch(e){toast(e.message);}
 }
+// Độ sâu của đơn vị trong cây (gốc VNPT Quảng Ninh = 0) — để thụt lề
+// option trong select đơn vị cho dễ nhìn.
+function unitDepth(id){
+  const byId={};(state.unitsAll||[]).forEach(function(u){byId[u.id]=u;});
+  let d=0,cur=byId[id],guard=0;
+  while(cur&&cur.parent_id&&byId[cur.parent_id]&&guard++<20){d++;cur=byId[cur.parent_id];}
+  return d;
+}
 function unitOptions(sel,all){
   const el=$(sel);if(!el)return;
   const cur=el.value;
-  el.innerHTML=(all?'<option value="">Tất cả đơn vị</option>':"")+state.units.map(function(u){return '<option value="'+u.id+'">'+esc(u.name)+'</option>';}).join("");
+  el.innerHTML=(all?'<option value="">Tất cả đơn vị</option>':"")+state.units.map(function(u){
+    const ind="— ".repeat(Math.max(0,unitDepth(u.id)-1));
+    return '<option value="'+u.id+'">'+ind+esc(u.name)+'</option>';
+  }).join("");
   if(cur)el.value=cur;
 }
-function loadUnitsIntoSelects(){
-  unitOptions("empUnit");unitOptions("empUnitFilter",true);unitOptions("repUnit",true);
+async function loadUnitsIntoSelects(){
+  await ensureUnits();
+  unitOptions("perUnit");unitOptions("perUnitFilter",true);unitOptions("repUnit",true);
   unitOptions("postScopeUnit");unitOptions("monUnit");
 }
 async function loadCampaigns(){
@@ -1109,47 +1105,158 @@ function guessEmpField(h){
   if(/trang thai/.test(n))return "status";
   return "";
 }
-function loadEmps(){
-  const q=$("empSearch").value.trim(), unit=$("empUnitFilter").value||"", status=$("empStatusFilter").value||"";
-  api("/api/employees?"+new URLSearchParams({q:q,unit_id:unit,status:status}).toString()).then(function(d){
-    state.emps=d.employees||[];
-    $("empList").innerHTML=state.emps.map(function(e){
-      return '<div class="list-item"><div class="ic">👤</div><div class="mid"><div class="t">'+esc(e.full_name)+' <span class="muted">('+esc(e.code)+')</span></div><div class="s">'+esc(e.unit_name||"")+' · '+esc(e.title||"")+' · '+esc(e.group_name||"")+' · '+esc(e.phone||"")+' · '+esc(e.email||"")+'</div></div><span class="pill '+(e.status==="working"?"ok":"grey")+'">'+(e.status==="working"?"Đang làm việc":"Nghỉ")+'</span><div><button class="btn small" type="button" onclick="editEmp('+e.id+')">✏️ Sửa</button> <button class="btn small danger" type="button" onclick="deleteEmp('+e.id+')">🗑 Xóa</button></div></div>';
-    }).join("")||'<p class="muted">Không tìm thấy CBCNV.</p>';
-  }).catch(function(e){toast(e.message);});
+/* ================= Quản lý nhân sự thống nhất (1 form, 1 danh sách) ================= */
+// Một module duy nhất, không chia tab: 1 form tạo đồng thời hồ sơ CBCNV +
+// tài khoản đăng nhập đã gắn mã NV; 1 danh sách thống nhất (mỗi dòng = 1
+// con người); lọc theo đơn vị + tìm kiếm không dấu; sửa/xóa/khóa/mở,
+// đặt lại MK. Vai trò suy ra: tick SubAdmin -> sub_admin; không tick và
+// Nhóm = "Lãnh đạo" -> leader; còn lại -> employee (form tự điền sẵn,
+// admin sửa được tay; checkbox SubAdmin chỉ super_admin tick được).
+async function loadPersonnel(){
+  await ensureUnits();
+  loadUnitsIntoSelects();
+  const q=$("perSearch").value.trim(), unit=$("perUnitFilter").value||"", status=$("perStatusFilter").value||"", acc=$("perAccountFilter").value||"";
+  try{
+    const d=await api("/api/admin/personnel?"+new URLSearchParams({q:q,unit_id:unit,status:status,has_account:acc}).toString());
+    state.personnel=d.rows||[];
+    renderPersonnelList();
+  }catch(e){toast(e.message);}
+  try{
+    const s=await api("/api/admin/stats");
+    $("adminStats").innerHTML=Object.keys(s.tables).map(function(k){return k+": <b>"+s.tables[k]+"</b>";}).join(" · ")+'<br><span class="muted">Database: '+esc(s.database)+'</span>';
+  }catch(e){/* bỏ qua */}
 }
-function editEmp(id){
-  const e=(state.emps||[]).find(function(x){return x.id===id;});
-  if(!e)return;
-  state.editEmpId=id;
-  $("empFormTitle").textContent="Sửa CBCNV: "+e.full_name+" ("+e.code+")";
-  $("empCode").value=e.code;$("empCode").disabled=true; // mã NV là khóa liên kết, không sửa
-  $("empName").value=e.full_name||"";
-  $("empUnit").value=e.unit_id||"";
-  $("empTitle").value=e.title||"";
-  $("empGroup").value=e.group_name||"";
-  $("empStatus").value=e.status||"working";
-  $("empEmail").value=e.email||"";
-  $("empPhone").value=e.phone||"";
-  $("empFb").value=e.facebook_url||"";
-  $("btnAddEmp").textContent="Lưu thay đổi";
-  show("btnCancelEmp",true);
+function renderPersonnelList(){
+  const isSA=isSuperAdminRole();
+  $("perList").innerHTML=(state.personnel||[]).map(function(r){
+    const isSuper=r.user_role==="super_admin";
+    const dis=(isSuper&&!isSA)?" disabled":"";
+    const acc=r.user_id
+      ?(r.user_status==="active"?'<span class="pill ok">Đang hoạt động</span>':'<span class="pill bad">Đã khóa</span>')+" · "+roleLabel(r.user_role)
+      :'<span class="pill grey">Chưa có tài khoản</span>';
+    const sub=r.user_role==="sub_admin"?'<span class="pill blue">SubAdmin</span> ':"";
+    return '<div class="list-item"><div class="ic">👤</div><div class="mid"><div class="t">'+esc(r.full_name)+' '+(r.code?'<span class="muted">('+esc(r.code)+')</span>':"")+' '+sub+'</div>'
+      +'<div class="s">'+esc(r.unit_name||"")+' · '+esc(r.group_name||"")+' · '+esc(r.title||"")+'</div>'
+      +'<div class="s">User: '+(r.login_email?'<b>'+esc(r.login_email)+'</b>':"—")+' · '+esc(r.email||"")+' · '+esc(r.phone||"")+(r.facebook_url?' · <a href="'+esc(r.facebook_url)+'" target="_blank" rel="noopener">Facebook</a>':"")+'</div>'
+      +'<div class="s">Tài khoản: '+acc+' · '+(r.kind==="pure"?"Tài khoản thuần":(r.status==="working"?"Đang làm việc":"Nghỉ"))+'</div></div>'
+      +'<div><button class="btn small" type="button" onclick="editPerson(\''+r.kind+'\','+(r.kind==="employee"?r.employee_id:r.user_id)+')"'+dis+'>✏️ Sửa</button> '
+      +(r.user_id?'<button class="btn small" type="button" onclick="togglePersonLock('+r.user_id+','+(r.user_status==="active"?1:0)+')"'+dis+'>'+(r.user_status==="active"?"🔒 Khóa":"🔓 Mở khóa")+'</button> ':"")
+      +'<button class="btn small danger" type="button" onclick="deletePerson(\''+r.kind+'\','+(r.kind==="employee"?r.employee_id:r.user_id)+')"'+dis+'>🗑 Xóa</button></div></div>';
+  }).join("")||'<p class="muted">Không tìm thấy nhân sự nào.</p>';
+}
+// Đồng bộ 2 chiều giữa Nhóm đối tượng / checkbox SubAdmin / select Vai trò:
+// đổi Nhóm hoặc tick/bỏ tick checkbox -> vai trò tự điền lại; đổi tay
+// select Vai trò -> checkbox SubAdmin chạy theo (chỉ khi chọn sub_admin).
+function syncPersonRoleFromInputs(){
+  if($("perSubAdmin").checked){$("perRole").value="sub_admin";}
+  else{$("perRole").value=$("perGroup").value==="Lãnh đạo"?"leader":"employee";}
+}
+function syncPersonSubAdmin(){
+  $("perSubAdmin").checked=$("perRole").value==="sub_admin";
+}
+function editPerson(kind,id){
+  const r=(state.personnel||[]).find(function(x){return kind==="employee"?x.employee_id===id:x.user_id===id;});
+  if(!r)return;
+  state.perEdit={kind:kind,employee_id:r.employee_id,user_id:r.user_id};
+  $("perFormTitle").textContent="Sửa nhân sự: "+r.full_name+(r.code?" ("+r.code+")":"");
+  $("perCode").value=r.code||"";
+  $("perName").value=r.full_name||"";
+  $("perLogin").value=r.login_email||"";
+  $("perPass").value="";$("perPass").disabled=true;$("perPass").placeholder="Dùng nút Đặt lại MK bên dưới";
+  $("perUnit").value=r.unit_id||"";
+  $("perTitle").value=r.title||"";
+  $("perGroup").value=r.group_name||"";
+  $("perStatus").value=r.status||"working";
+  $("perEmail").value=r.email||"";
+  $("perPhone").value=r.phone||"";
+  $("perFb").value=r.facebook_url||"";
+  $("perRole").value=r.user_role||(r.group_name==="Lãnh đạo"?"leader":"employee");
+  $("perSubAdmin").checked=r.user_role==="sub_admin";
+  const isPure=kind==="pure";
+  // Tài khoản thuần không có hồ sơ CBCNV: các trường hồ sơ khóa lại (trừ
+  // Mã NV — nhập mã để gắn với hồ sơ CBCNV có sẵn, xem savePerson).
+  $("perCode").disabled=!isPure;
+  if(isPure)$("perCode").placeholder="Nhập mã NV để gắn với hồ sơ CBCNV có sẵn";
+  ["perUnit","perTitle","perGroup","perEmail","perPhone","perFb","perStatus"].forEach(function(x){$(x).disabled=isPure;});
+  $("btnSavePerson").textContent="Lưu thay đổi";
+  show("btnCancelPerson",true);
+  show("btnResetPersonPass",!!r.user_id);
+  $("perFormMsg").textContent=isPure?"Tài khoản thuần — nhập mã NV vào ô trên để gắn với hồ sơ CBCNV có sẵn (vai trò và họ tên giữ nguyên theo form).":"";
+  filterRoleSelects();
   window.scrollTo(0,0);
 }
-function cancelEmpEdit(){
-  state.editEmpId=null;
-  ["empCode","empName","empTitle","empEmail","empPhone","empFb"].forEach(function(id){$(id).value="";});
-  $("empCode").disabled=false;
-  $("empUnit").value="";$("empGroup").value="";$("empStatus").value="working";
-  $("empFormTitle").textContent="Thêm CBCNV";
-  $("btnAddEmp").textContent="Thêm CBCNV";
-  show("btnCancelEmp",false);
+function cancelPersonEdit(){
+  state.perEdit=null;
+  ["perCode","perName","perLogin","perTitle","perEmail","perPhone","perFb"].forEach(function(id){$(id).value="";});
+  $("perCode").disabled=false;$("perCode").placeholder="VD: NV001 — để trống = tài khoản admin thuần";
+  $("perPass").value="Vnpt@2026";$("perPass").disabled=false;$("perPass").placeholder="Tối thiểu 6 ký tự";
+  $("perUnit").value="";$("perGroup").value="";$("perStatus").value="working";
+  $("perRole").value="employee";$("perSubAdmin").checked=false;
+  ["perUnit","perTitle","perGroup","perEmail","perPhone","perFb","perStatus"].forEach(function(id){$(id).disabled=false;});
+  $("perFormTitle").textContent="Thêm nhân sự mới";
+  $("btnSavePerson").textContent="Thêm nhân sự";
+  show("btnCancelPerson",false);show("btnResetPersonPass",false);
+  $("perFormMsg").textContent="";
+  filterRoleSelects();
 }
-async function deleteEmp(id){
-  const e=(state.emps||[]).find(function(x){return x.id===id;});
-  if(!confirm("Xóa CBCNV "+(e?e.full_name+" ("+e.code+")":"")+"? Chỉ xóa được khi CBCNV chưa có nhiệm vụ và minh chứng — nếu không, hãy chuyển trạng thái thành 'Nghỉ'."))return;
-  try{await api("/api/employees/"+id,{method:"DELETE"});toast("Đã xóa CBCNV");loadEmps();}
+async function savePerson(){
+  try{
+    const code=$("perCode").value.trim();
+    const name=$("perName").value.trim();
+    const login=$("perLogin").value.trim();
+    const pass=$("perPass").value;
+    if(!name){$("perFormMsg").textContent="Nhập họ tên.";return;}
+    if(!login){$("perFormMsg").textContent="Nhập User đăng nhập (email hoặc SĐT).";return;}
+    if(!state.perEdit && pass.length<6){$("perFormMsg").textContent="Mật khẩu tối thiểu 6 ký tự.";return;}
+    const body={code:code,full_name:name,login:login,
+      unit_id:Number($("perUnit").value)||null,title:$("perTitle").value.trim(),group_name:$("perGroup").value,
+      email:$("perEmail").value.trim(),phone:$("perPhone").value.trim(),facebook_url:$("perFb").value.trim(),
+      status:$("perStatus").value,role:$("perRole").value,sub_admin:$("perSubAdmin").checked};
+    if(state.perEdit){
+      if(state.perEdit.kind==="employee"){
+        await api("/api/admin/personnel/"+state.perEdit.employee_id,{method:"PUT",body:body});
+      }else{
+        // Tài khoản thuần: nếu nhập mã NV thì gắn với hồ sơ CBCNV có sẵn
+        // (tìm theo mã, rồi PUT /api/admin/users/:id với employee_id).
+        let empId=null;
+        if(code){
+          const d=await api("/api/employees?q="+encodeURIComponent(code));
+          const found=(d.employees||[]).find(function(e){return e.code===code;});
+          if(!found){$("perFormMsg").textContent="Không tìm thấy CBCNV có mã "+code+" — kiểm tra lại mã nhân viên.";return;}
+          empId=found.id;
+        }
+        await api("/api/admin/users/"+state.perEdit.user_id,{method:"PUT",body:{full_name:name,role:body.role,email:login,employee_id:empId}});
+      }
+      toast("Đã lưu thay đổi nhân sự");cancelPersonEdit();
+    }else{
+      body.password=pass;
+      await api("/api/admin/personnel",{method:"POST",body:body});
+      toast("Đã tạo nhân sự — mật khẩu mặc định Vnpt@2026");cancelPersonEdit();
+    }
+    loadPersonnel();
+  }catch(e){$("perFormMsg").textContent=e.message;toast(e.message);}
+}
+async function deletePerson(kind,id){
+  const r=(state.personnel||[]).find(function(x){return kind==="employee"?x.employee_id===id:x.user_id===id;});
+  if(!confirm("Xóa "+(kind==="employee"?"nhân sự ":"tài khoản ")+(r?r.full_name+(r.code?" ("+r.code+")":""):"")+"?"+(kind==="employee"?" Hồ sơ và tài khoản đăng nhập (nếu có) sẽ bị xóa cùng lúc. Chỉ xóa được khi chưa có nhiệm vụ và minh chứng — nếu không, hãy chuyển trạng thái thành 'Nghỉ'.":"")))return;
+  try{
+    if(kind==="employee")await api("/api/admin/personnel/"+id,{method:"DELETE"});
+    else await api("/api/admin/users/"+id,{method:"DELETE"});
+    toast("Đã xóa");loadPersonnel();
+  }catch(e){toast(e.message);}
+}
+async function togglePersonLock(userId,isActive){
+  try{await api("/api/admin/users/"+userId+(isActive?"/lock":"/unlock"),{method:"POST"});toast("Đã cập nhật");loadPersonnel();}
   catch(e){toast(e.message);}
+}
+async function resetPersonPass(){
+  if(!state.perEdit||!state.perEdit.user_id)return;
+  if(!confirm("Đặt lại mật khẩu về mặc định Vnpt@2026? Người dùng sẽ phải đổi lại ở lần đăng nhập tiếp theo."))return;
+  try{
+    await api("/api/admin/users/"+state.perEdit.user_id+"/reset-password",{method:"POST",body:{new_password:"Vnpt@2026"}});
+    toast("Đã đặt lại mật khẩu về Vnpt@2026");
+    $("perFormMsg").textContent="Đã đặt lại mật khẩu về Vnpt@2026 — người dùng phải đổi lại ở lần đăng nhập tiếp theo.";
+  }catch(e){$("perFormMsg").textContent=e.message;toast(e.message);}
 }
 function parseEmpFile(file){
   const reader=new FileReader();
@@ -1220,9 +1327,16 @@ async function doEmpImport(){
   }).filter(function(r){return r.code&&r.full_name;});
   try{
     const d=await api("/api/admin/employees/import",{method:"POST",body:{rows:rows,mode:mode,file_name:$("empFile").files[0]?$("empFile").files[0].name:""}});
-    $("empImpMsg").textContent="Import xong: "+d.imported+"/"+d.total+" dòng (bỏ qua "+d.skipped+" dòng thiếu mã/họ tên).";
-    toast("Import xong: "+d.imported+" CBCNV");
-    loadEmps();
+    let msg="Import xong: "+d.imported+"/"+d.total+" dòng (bỏ qua "+d.skipped+" dòng thiếu mã/họ tên).";
+    if(d.accounts_created!==undefined){
+      msg+=" Đã tạo "+(d.accounts_created||0)+" tài khoản đăng nhập mới (mật khẩu mặc định Vnpt@2026).";
+      if(d.accounts_existing)msg+=" "+d.accounts_existing+" người đã có tài khoản.";
+      if(d.no_account&&d.no_account.length)msg+=" "+d.no_account.length+" dòng chưa có tài khoản (không có email/SĐT hợp lệ).";
+      if(d.accounts_skipped&&d.accounts_skipped.length)msg+=" "+d.accounts_skipped.length+" dòng không tạo được tài khoản (user đăng nhập đã tồn tại).";
+    }
+    $("empImpMsg").textContent=msg;
+    toast("Import xong: "+d.imported+" nhân sự");
+    loadPersonnel();
   }catch(e){$("empImpMsg").textContent=e.message;}
 }
 function downloadEmpTemplate(){
@@ -1250,6 +1364,7 @@ async function readNotif(id){try{await api("/api/notifications/"+id+"/read",{met
 async function fillSettings(){
   try{
     const d=await api("/api/me");
+    state.myEmp=d.employee||null;
     $("setName").value=d.user.full_name||"";
     $("myEmpInfo").textContent=d.employee?("Đã gắn CBCNV: "+d.employee.code+" — "+d.employee.full_name+" ("+(d.employee.unit_id||"")+")"):"Tài khoản chưa gắn với CBCNV nào — nhờ admin gắn mã nhân viên.";
     const q=await api("/api/me/security-questions");
@@ -1257,57 +1372,6 @@ async function fillSettings(){
     const box=$("secQA");box.innerHTML="";
     (q.questions.length?q.questions:["","",""]).forEach(function(qq){qaRow(box,qq,"");});
   }catch(e){toast(e.message);}
-}
-async function loadAdmin(){
-  try{
-    const s=await api("/api/admin/stats");
-    $("adminStats").innerHTML=Object.keys(s.tables).map(function(k){return k+": <b>"+s.tables[k]+"</b>";}).join(" · ")+'<br><span class="muted">Database: '+esc(s.database)+'</span>';
-    const u=await api("/api/admin/users");
-    state.adminUsers=u.users||[];
-    $("adminUsers").innerHTML=state.adminUsers.map(function(x){
-      return '<div class="list-item"><div class="ic">👤</div><div class="mid"><div class="t">'+esc(x.full_name||x.email)+'</div><div class="s">'+esc(x.email)+' · '+roleLabel(x.role)+'</div><div class="s">CBCNV gắn kèm: '+(x.employee_code?"<b>"+esc(x.employee_code)+" — "+esc(x.employee_name||"")+"</b>":'<span class="warn">Chưa gắn</span>')+' · '+(x.status==="active"?"Đang hoạt động":"Đã khóa")+'</div></div><div><button class="btn small" type="button" onclick="openEditUser('+x.id+')">🔗 Gắn mã NV</button> <button class="btn small" type="button" onclick="resetUserPass('+x.id+',\''+esc(x.email).replace(/'/g,"\\'")+'\')">Đặt lại MK</button> <button class="btn small" type="button" onclick="toggleUserLock('+x.id+','+(x.status==="active"?1:0)+')">'+(x.status==="active"?"Khóa":"Mở khóa")+'</button></div></div>';
-    }).join("");
-  }catch(e){toast(e.message);}
-}
-// Sửa tài khoản có sẵn: đổi họ tên / vai trò / gắn hoặc gỡ mã nhân viên.
-// Đây là cách xử lý lỗi "Tài khoản chưa gắn với CBCNV nào" ở mục Nhiệm vụ:
-// tài khoản đã tạo nhưng chưa gắn mã, admin vào đây bấm "Gắn mã NV" rồi
-// nhập mã NV của họ (nút này giữ lại để sửa khi cần).
-function openEditUser(id){
-  const x=(state.adminUsers||[]).find(function(u){return u.id===id;});
-  if(!x)return;
-  state.editUserId=id;
-  $("userModalInfo").textContent=(x.full_name||x.email)+" · "+x.email;
-  $("editUserName").value=x.full_name||"";
-  $("editUserRole").value=x.role;
-  $("editUserEmpCode").value=x.employee_code||"";
-  $("userModalMsg").textContent=x.employee_code?("Đang gắn CBCNV: "+x.employee_code+" — "+(x.employee_name||"")):"Chưa gắn CBCNV nào.";
-  show("userModal",true);
-}
-async function doEditUser(){
-  const code=$("editUserEmpCode").value.trim();
-  let empId=null;
-  try{
-    if(code){
-      const d=await api("/api/employees?q="+encodeURIComponent(code));
-      const found=(d.employees||[]).find(function(e){return e.code===code;});
-      if(!found){$("userModalMsg").textContent="Không tìm thấy CBCNV có mã "+code+" — kiểm tra lại mã nhân viên.";return;}
-      empId=found.id;
-    }
-    await api("/api/admin/users/"+state.editUserId,{method:"PUT",body:{full_name:$("editUserName").value.trim(),role:$("editUserRole").value,employee_id:empId}});
-    toast("Đã lưu thay đổi tài khoản");
-    show("userModal",false);loadAdmin();
-  }catch(e){$("userModalMsg").textContent=e.message;}
-}
-async function resetUserPass(id,email){
-  const np=prompt("Đặt mật khẩu mới cho "+email+" (tối thiểu 6 ký tự):");
-  if(!np)return;
-  try{await api("/api/admin/users/"+id+"/reset-password",{method:"POST",body:{new_password:np}});toast("Đã đặt lại mật khẩu");loadAdmin();}
-  catch(e){toast(e.message);}
-}
-async function toggleUserLock(id,isActive){
-  try{await api("/api/admin/users/"+id+(isActive?"/lock":"/unlock"),{method:"POST"});toast("Đã cập nhật");loadAdmin();}
-  catch(e){toast(e.message);}
 }
 async function loadAudit(){
   const a=$("auditAction").value||"";
@@ -1424,21 +1488,13 @@ function wire(){
   };
   $("btnLoadReport").onclick=loadReportTable;
   $("btnExportXlsx").onclick=exportReportXlsx;
-  $("btnLoadEmps").onclick=loadEmps;
-  $("btnAddEmp").onclick=async function(){
-    try{
-      const body={full_name:$("empName").value.trim(),unit_id:Number($("empUnit").value)||null,title:$("empTitle").value.trim(),group_name:$("empGroup").value, email:$("empEmail").value.trim(),phone:$("empPhone").value.trim(),facebook_url:$("empFb").value.trim(),status:$("empStatus").value};
-      if(state.editEmpId){
-        await api("/api/employees/"+state.editEmpId,{method:"PUT",body:body});
-        toast("Đã lưu thay đổi CBCNV");cancelEmpEdit();
-      }else{
-        await api("/api/employees",{method:"POST",body:{code:$("empCode").value.trim(),...body}});
-        toast("Đã thêm CBCNV");$("empCode").value="";$("empName").value="";
-      }
-      loadEmps();
-    }catch(e){toast(e.message);}
-  };
-  $("btnCancelEmp").onclick=cancelEmpEdit;
+  $("btnLoadPersonnel").onclick=loadPersonnel;
+  $("btnSavePerson").onclick=savePerson;
+  $("btnCancelPerson").onclick=cancelPersonEdit;
+  $("btnResetPersonPass").onclick=resetPersonPass;
+  $("perGroup").addEventListener("change",syncPersonRoleFromInputs);
+  $("perSubAdmin").addEventListener("change",syncPersonRoleFromInputs);
+  $("perRole").addEventListener("change",syncPersonSubAdmin);
   $("btnEmpTemplate").onclick=downloadEmpTemplate;
   $("empFile").addEventListener("change",function(){if(this.files[0])parseEmpFile(this.files[0]);});
   $("btnDoEmpImport").onclick=doEmpImport;
@@ -1472,24 +1528,6 @@ function wire(){
     try{await api("/api/me",{method:"PUT",body:{full_name:$("setName").value.trim()}});toast("Đã lưu hồ sơ");}
     catch(e){toast(e.message);}
   };
-  $("btnAddUser").onclick=async function(){
-    try{
-      const role=$("admRole").value;
-      let empId=null;
-      const code=$("admEmpCode").value.trim();
-      if((role==="employee"||role==="leader")&&!code){toast("Tài khoản CBCNV/Lãnh đạo đơn vị phải gắn mã nhân viên — nhập mã NV.");return;}
-      if(code){
-        const d=await api("/api/employees?q="+encodeURIComponent(code));
-        const found=(d.employees||[]).find(function(e){return e.code===code;});
-        if(!found){toast("Không tìm thấy CBCNV có mã "+code);return;}
-        empId=found.id;
-      }
-      await api("/api/admin/users",{method:"POST",body:{identifier:$("admIdent").value.trim(),password:$("admPass").value,full_name:$("admName").value.trim(),role:role,employee_id:empId}});
-      toast("Đã tạo tài khoản — mật khẩu mặc định Vnpt@2026");$("admIdent").value="";$("admPass").value="Vnpt@2026";loadAdmin();
-    }catch(e){toast(e.message);}
-  };
-  $("btnCloseUserModal").onclick=function(){show("userModal",false);};
-  $("btnDoEditUser").onclick=doEditUser;
   $("btnLoadAudit").onclick=loadAudit;
 }
 
@@ -1504,7 +1542,7 @@ document.addEventListener("DOMContentLoaded",function(){
     // khi vào app (trường hợp admin vừa đặt lại MK, hoặc user đóng tab
     // giữa chừng ở lần đầu). Lỗi mạng thì dùng cache, không chặn oan.
     api("/api/me").then(function(d){
-      state.user=d.user;localStorage.setItem(LS_USER,JSON.stringify(d.user));
+      state.user=d.user;state.myEmp=d.employee||null;localStorage.setItem(LS_USER,JSON.stringify(d.user));
       if(d.user.must_change_password||!d.has_security_questions)showFirstLogin(d.user,d.has_security_questions);
       else showApp(true);
     }).catch(function(){
