@@ -30,7 +30,7 @@ localStorage (như MyMoney), mọi dữ liệu nghiệp vụ qua Worker → D1.
 ## Tính năng chính
 
 1. **Auth — không có đăng ký tự do (đổi 09/11/2026)** — chỉ admin tạo tài
-   khoản trong Quản trị → Người dùng (email HOẶC SĐT VN, chuẩn hóa
+   khoản trong Quản lý nhân sự → tab Tài khoản người dùng (email HOẶC SĐT VN, chuẩn hóa
    `0xxxxxxxxx`, lưu vào cột `users.email` làm định danh; tài khoản CBCNV/
    Lãnh đạo bắt buộc gắn mã NV ngay lúc tạo). Mật khẩu mặc định **`Vnpt@2026`**
    (đã điền sẵn ở form tạo tài khoản, admin sửa được). Tài khoản mới có cờ
@@ -46,8 +46,8 @@ localStorage (như MyMoney), mọi dữ liệu nghiệp vụ qua Worker → D1.
 2. **Phân quyền** — `super_admin` / `admin` truyền thông (tạo chiến dịch/bài,
    giao nhiệm vụ, kiểm tra minh chứng, chốt tháng, xem toàn tỉnh, import/export);
    **`sub_admin`** (phó admin: dùng đúng các quyền như admin — tạo chiến dịch,
-   tạo bài + giao nhiệm vụ, module Báo cáo, module Quản trị gồm CBCNV/đơn vị/
-   người dùng/import/export) với 2 NGOẠI LỆ do server chặn cứng: sub_admin
+   tạo bài + giao nhiệm vụ, module Báo cáo, module Quản lý nhân sự (tab CBCNV +
+   tab Tài khoản người dùng)/đơn vị/import/export) với 2 NGOẠI LỆ do server chặn cứng: sub_admin
    KHÔNG được cấp/thu hồi quyền sub_admin (chỉ super_admin gán/thu hồi),
    KHÔNG được tạo/sửa/xóa/khóa/đặt lại mật khẩu tài khoản super_admin;
    `leader` (chỉ xem cây đơn vị mình, không sửa); `employee` (xem nhiệm vụ, mở
@@ -103,7 +103,7 @@ localStorage (như MyMoney), mọi dữ liệu nghiệp vụ qua Worker → D1.
    gắn mã (chỉ admin thuần mới được để trống) sẽ thấy lỗi "Tài khoản chưa
    gắn với CBCNV nào" ở mục Nhiệm vụ của tôi và không nhận được nhiệm vụ.
    Cách xử lý (không cần xóa tài khoản làm lại): admin/super_admin vào
-   **Quản trị → Người dùng → bấm "🔗 Gắn mã NV"** ở dòng tài khoản đó →
+   **Quản lý nhân sự → tab Tài khoản người dùng → bấm "🔗 Gắn mã NV"** ở dòng tài khoản đó →
    nhập mã NV (VD: NV001) → Lưu. Hệ thống kiểm tra mã có tồn tại không và
    mã đã gắn cho tài khoản khác chưa; để trống ô mã là gỡ gắn. Cột "CBCNV
    gắn kèm" trong danh sách Người dùng cho biết tài khoản nào đã gắn/chưa
@@ -187,7 +187,7 @@ sẻ nhưng xóa bài trước chốt tháng = không hoàn thành bài đó.
    — tài khoản này tự thành **super_admin** (chỉ chạy được khi bảng users
    đang trống; đã có user thì API trả 403). Với database hiện tại (đã có
    tài khoản super_admin của anh) thì bỏ qua bước này.
-2. Vào CBCNV → Import file mẫu (hoặc thêm tay vài CBCNV) → Quản trị → tạo
+2. Vào Quản lý nhân sự → tab CBCNV → Import file mẫu (hoặc thêm tay vài CBCNV) → tab Tài khoản người dùng → tạo
    tài khoản cho CBCNV: nhập email/SĐT, họ tên, vai trò, **mã nhân viên
    (bắt buộc với CBCNV/Lãnh đạo)**, mật khẩu mặc định `Vnpt@2026` đã điền
    sẵn → Tạo tài khoản. Người dùng đăng nhập lần đầu sẽ bị bắt đổi mật
@@ -244,7 +244,9 @@ qnh-social/
 1. **Các bản cập nhật 09/11 tối chưa lên môi trường thật (đợt 2: sub_admin,
    sửa/xóa CBCNV/đơn vị, gắn mã NV, nhóm Chuyên viên; đợt 3: bỏ đăng ký tự
    do, mật khẩu mặc định Vnpt@2026, bắt buộc đổi MK + đặt câu hỏi bí mật
-   lần đầu)** — cần: (a) đẩy `index.html` + `worker.js` + `schema.sql` +
+   lần đầu; đợt 4: gộp mục Quản trị + CBCNV thành 1 module Quản lý nhân sự
+   với 2 tab — chỉ đổi frontend `index.html`, không cần dán lại worker.js
+   cho đợt 4)** — cần: (a) đẩy `index.html` + `worker.js` + `schema.sql` +
    `README.md` + `docs/huong-dan-su-dung.md` mới lên GitHub; (b) **dán lại
    `worker.js` mới lên Cloudflare** (Worker `qnh-social-api`) thì các thay
    đổi phía máy chủ mới có hiệu lực (một lần dán kích hoạt cả đợt 2 và đợt

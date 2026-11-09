@@ -2,7 +2,7 @@
 ### Hệ thống giám sát chia sẻ bài viết truyền thông — VNPT Quảng Ninh
 
 > Trang web: https://dhkdvtqn.github.io/qnh-social/
-> Phiên bản tài liệu: v3 (09/11/2026) — cập nhật theo đợt thay đổi: **bỏ đăng ký tự do, chỉ admin tạo tài khoản, mật khẩu mặc định Vnpt@2026, bắt buộc đổi mật khẩu + đặt câu hỏi bí mật ở lần đăng nhập đầu tiên**. Các thay đổi trước: v2 — vai trò Sub Admin, nhóm "Chuyên viên", sửa/xóa CBCNV, sửa/xóa đơn vị (chọn đơn vị cha), gắn mã NV cho tài khoản có sẵn.
+> Phiên bản tài liệu: v4 (09/11/2026) — cập nhật theo đợt thay đổi: **gộp mục "Quản trị" và mục "CBCNV" thành một module "Quản lý nhân sự" với 2 tab (CBCNV + Tài khoản người dùng)**. Các thay đổi trước: v3 — bỏ đăng ký tự do, chỉ admin tạo tài khoản, mật khẩu mặc định Vnpt@2026, bắt buộc đổi mật khẩu + đặt câu hỏi bí mật ở lần đăng nhập đầu tiên; v2 — vai trò Sub Admin, nhóm "Chuyên viên", sửa/xóa CBCNV, sửa/xóa đơn vị (chọn đơn vị cha), gắn mã NV cho tài khoản có sẵn.
 > Mỗi lần hệ thống thay đổi, tài liệu này được cập nhật lại. Bản PDF đi kèm được tạo từ chính file này.
 
 ---
@@ -21,7 +21,7 @@ Hệ thống **không** quét Facebook để chấm công từng người. Kết
 
 ### 2.1. Tài khoản do admin tạo — không có đăng ký tự do
 
-Hệ thống **không có chức năng đăng ký tài khoản mới** trên màn hình đăng nhập. Mọi tài khoản đều do admin (Super Admin / Admin truyền thông / Sub Admin) tạo trong **Quản trị → Người dùng** (xem mục 6.3).
+Hệ thống **không có chức năng đăng ký tài khoản mới** trên màn hình đăng nhập. Mọi tài khoản đều do admin (Super Admin / Admin truyền thông / Sub Admin) tạo trong **Quản lý nhân sự → tab Tài khoản người dùng** (xem mục 6.3).
 
 Khi tạo tài khoản, admin nhập email hoặc số điện thoại (đây sẽ là tài khoản đăng nhập), họ tên, vai trò và **mã nhân viên gắn kèm** — tài khoản CBCNV/Lãnh đạo **bắt buộc** gắn mã NV ngay lúc tạo nên không còn bước gắn mã riêng; admin thuần thì để trống mã. Mật khẩu mặc định là **`Vnpt@2026`** (đã điền sẵn trong form tạo tài khoản).
 
@@ -51,7 +51,7 @@ Hệ thống **không gửi email** để lấy lại mật khẩu. Vì vậy h�
 | Vai trò | Ai | Được làm gì |
 |---|---|---|
 | **Super Admin** | Quản trị toàn hệ thống | Mọi quyền, **duy nhất** được cấp/thu hồi quyền Sub Admin và quản lý tài khoản Super Admin |
-| **Sub Admin** | Do Super Admin cấp | Như Admin truyền thông: tạo chiến dịch, tạo bài + giao nhiệm vụ, dùng Báo cáo, dùng Quản trị (CBCNV, đơn vị, người dùng, import/export), chốt tháng |
+| **Sub Admin** | Do Super Admin cấp | Như Admin truyền thông: tạo chiến dịch, tạo bài + giao nhiệm vụ, dùng Báo cáo, dùng Quản lý nhân sự (CBCNV, tài khoản người dùng, import/export), Đơn vị, chốt tháng |
 | **Admin truyền thông** | Bộ phận truyền thông | Tạo chiến dịch, tạo bài + giao nhiệm vụ, kiểm tra minh chứng, chốt tháng, xem toàn tỉnh, import/export |
 | **Lãnh đạo đơn vị** | Lãnh đạo các đơn vị | Chỉ xem kết quả đơn vị mình và các đơn vị trực thuộc, không sửa dữ liệu |
 | **CBCNV** | Toàn thể CBCNV | Xem nhiệm vụ, mở bài, khai báo link chia sẻ, xem kết quả cá nhân |
@@ -89,7 +89,7 @@ Mục **Nhiệm vụ của tôi** hiện tỷ lệ hoàn thành của bạn tron
 
 Lỗi này nghĩa là **tài khoản đăng nhập của bạn chưa được gắn với hồ sơ CBCNV** trong danh sách nhân sự, nên hệ thống không biết bạn là ai để giao nhiệm vụ.
 
-**Cách xử lý (dành cho admin):** xem mục 6.3 — admin vào **Quản trị → Người dùng**, bấm **🔗 Gắn mã NV** ở dòng tài khoản của bạn, nhập **mã nhân viên** của bạn (VD: NV001), bấm Lưu. Bạn đăng nhập lại là thấy nhiệm vụ ngay, không cần tạo lại tài khoản.
+**Cách xử lý (dành cho admin):** xem mục 6.3 — admin vào **Quản lý nhân sự → tab Tài khoản người dùng**, bấm **🔗 Gắn mã NV** ở dòng tài khoản của bạn, nhập **mã nhân viên** của bạn (VD: NV001), bấm Lưu. Bạn đăng nhập lại là thấy nhiệm vụ ngay, không cần tạo lại tài khoản.
 
 ---
 
@@ -136,11 +136,13 @@ Bấm **Lưu**: hệ thống **tự động giao nhiệm vụ** cho toàn bộ C
 
 ---
 
-## 6. Quản trị (Admin / Sub Admin)
+## 6. Quản lý nhân sự (Admin / Sub Admin)
+
+Module **Quản lý nhân sự** gộp 2 mục cũ "CBCNV" và "Quản trị" làm một, bên trong có **2 tab**: tab **CBCNV** (quản lý danh sách nhân sự, import Excel) và tab **Tài khoản người dùng** (tạo tài khoản, cấp quyền, gắn mã NV). Chỉ Super Admin / Admin truyền thông / Sub Admin thấy module này. Mục **Đơn vị** là mục riêng trên menu trái, hướng dẫn ở mục 6.2 trong chương này.
 
 ### 6.1. Quản lý CBCNV
 
-Vào **Quản trị → CBCNV**.
+Vào **Quản lý nhân sự → tab CBCNV**.
 
 **Thêm mới:** bấm **Thêm CBCNV**, nhập mã nhân viên (duy nhất, VD: NV001), họ tên, đơn vị, chức danh, **nhóm đối tượng** (Lãnh đạo / **Chuyên viên** / NVKD / NVKT / Khác), email, số điện thoại, link Facebook, trạng thái (Đang làm việc / Nghỉ).
 
@@ -152,7 +154,7 @@ Vào **Quản trị → CBCNV**.
 
 ### 6.2. Quản lý đơn vị
 
-Vào **Quản trị → Đơn vị**.
+Vào mục **Đơn vị** trên menu trái.
 
 **Thêm đơn vị:** nhập tên đơn vị, chọn **Đơn vị cha** (mặc định là **VNPT Quảng Ninh**), nhập thứ tự hiển thị, bấm **Thêm đơn vị**. Đơn vị gốc VNPT Quảng Ninh không hiện trong bảng, chỉ làm gốc cây.
 
@@ -162,7 +164,7 @@ Vào **Quản trị → Đơn vị**.
 
 ### 6.3. Quản lý người dùng — cấp quyền và gắn mã nhân viên
 
-Vào **Quản trị → Người dùng**. Danh sách hiện: họ tên, email/SĐT, vai trò, **CBCNV gắn kèm** (mã NV + họ tên, hoặc "Chưa gắn"), trạng thái.
+Vào **Quản lý nhân sự → tab Tài khoản người dùng**. Danh sách hiện: họ tên, email/SĐT, vai trò, **CBCNV gắn kèm** (mã NV + họ tên, hoặc "Chưa gắn"), trạng thái.
 
 **Tạo tài khoản mới:** bấm **Tạo tài khoản**, nhập email/SĐT, họ tên, chọn vai trò, nhập **mã nhân viên gắn với tài khoản** — tài khoản CBCNV/Lãnh đạo **bắt buộc** gắn mã ngay lúc tạo (hệ thống chặn tạo nếu thiếu mã); admin thuần để trống mã. Mật khẩu mặc định là **`Vnpt@2026`** (đã điền sẵn trong ô mật khẩu, admin sửa được nếu muốn đặt mật khẩu khác). Bấm **Tạo tài khoản** rồi báo cho người dùng mật khẩu mặc định. Người dùng đăng nhập lần đầu sẽ bị bắt đổi mật khẩu và đặt 3 câu hỏi bí mật (xem mục 2.2) rồi mới vào được hệ thống.
 

@@ -304,36 +304,54 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
       <div class="card"><h3>So sánh tháng (T vs T-1)</h3><div class="tablewrap"><table><thead><tr><th>Đơn vị</th><th>Tháng trước</th><th>Tháng này</th><th>Chênh lệch</th></tr></thead><tbody id="repCompareBody"></tbody></table></div><p class="muted" id="repCompareNote"></p></div>
     </section>
 
-    <section id="view-employees" class="view hidden">
-      <h2>CBCNV</h2>
-      <div class="card">
-        <div class="row"><input id="empSearch" type="search" placeholder="Tìm mã NV, họ tên, SĐT…"><select id="empUnitFilter"><option value="">Tất cả đơn vị</option></select><select id="empStatusFilter"><option value="">Tất cả trạng thái</option><option value="working">Đang làm việc</option><option value="left">Nghỉ</option></select></div>
-        <div style="margin-top:10px"><button class="btn primary" id="btnLoadEmps" type="button">Tìm</button></div>
-      </div>
-      <div class="card"><h3 id="empFormTitle">Thêm CBCNV</h3>
-        <div class="row"><div><label>Mã nhân viên *</label><input id="empCode" placeholder="VD: NV001"></div><div><label>Họ tên *</label><input id="empName" placeholder="Nguyễn Văn A"></div></div>
-        <div class="row"><div><label>Đơn vị</label><select id="empUnit"></select></div><div><label>Chức danh</label><input id="empTitle" placeholder="VD: Nhân viên kinh doanh"></div></div>
-        <div class="row"><div><label>Nhóm đối tượng</label><select id="empGroup"><option value="">—</option><option>Lãnh đạo</option><option>Chuyên viên</option><option>NVKD</option><option>NVKT</option><option>Khác</option></select></div><div><label>Trạng thái</label><select id="empStatus"><option value="working">Đang làm việc</option><option value="left">Nghỉ</option></select></div></div>
-        <div class="row"><div><label>Email</label><input id="empEmail" placeholder="email@vnpt.vn"></div><div><label>Số điện thoại</label><input id="empPhone" placeholder="0987654321"></div></div>
-        <label>Link Facebook cá nhân (tùy chọn)</label><input id="empFb" placeholder="https://www.facebook.com/...">
-        <div class="row" style="margin-top:14px"><button class="btn primary" id="btnAddEmp" type="button">Thêm CBCNV</button><button class="btn hidden" id="btnCancelEmp" type="button">Hủy sửa</button></div>
-      </div>
-      <div class="card"><h3>Import CBCNV từ Excel/CSV</h3>
-        <p class="muted">Hỗ trợ .xlsx, .csv. File không cần đúng mẫu: anh ánh xạ cột ở bước dưới. Hệ thống đọc cell theo kiểu dữ liệu gốc (số giữ nguyên, không strip dấu chấm/phẩy ở cell số).</p>
-        <div class="row"><div><button class="btn" id="btnEmpTemplate" type="button">⬇ Tải file mẫu import</button></div><div><input id="empFile" type="file" accept=".xlsx,.xls,.csv"></div></div>
-        <div id="empMap" class="hidden">
-          <h3 style="margin-top:14px">Ánh xạ cột <span class="muted">(bảng đối chiếu — kiểm tra trước khi import)</span></h3>
-          <div id="empMapRows"></div>
-          <p id="empDropped" class="muted" style="margin-top:8px"></p>
-          <div class="row" style="margin-top:10px">
-            <div><label>Chế độ import</label><select id="empMode"><option value="create">Tạo mới (bỏ qua mã đã có)</option><option value="update">Cập nhật (mã đã có thì ghi đè)</option><option value="replace">Thay thế toàn bộ danh sách</option></select></div>
-          </div>
-          <div style="margin-top:12px"><button class="btn primary block" id="btnDoEmpImport" type="button">Import CBCNV</button></div>
+    <section id="view-personnel" class="view hidden">
+      <h2>👥 Quản lý nhân sự</h2>
+      <div class="tabs"><button id="tabBtnEmps" type="button" class="on" onclick="showPersonnelTab('emps')">👥 CBCNV</button><button id="tabBtnAccounts" type="button" onclick="showPersonnelTab('accounts')">🛡️ Tài khoản người dùng</button></div>
+      <div id="tab-emps">
+        <div class="card">
+          <div class="row"><input id="empSearch" type="search" placeholder="Tìm mã NV, họ tên, SĐT…"><select id="empUnitFilter"><option value="">Tất cả đơn vị</option></select><select id="empStatusFilter"><option value="">Tất cả trạng thái</option><option value="working">Đang làm việc</option><option value="left">Nghỉ</option></select></div>
+          <div style="margin-top:10px"><button class="btn primary" id="btnLoadEmps" type="button">Tìm</button></div>
         </div>
-        <p id="empImpMsg" class="muted" style="margin-top:10px"></p>
-        <h3 style="margin-top:14px">Xem trước (10 dòng đầu)</h3><div class="tablewrap"><table><thead id="empImpHead"></thead><tbody id="empImpPreview"></tbody></table></div>
+        <div class="card"><h3 id="empFormTitle">Thêm CBCNV</h3>
+          <div class="row"><div><label>Mã nhân viên *</label><input id="empCode" placeholder="VD: NV001"></div><div><label>Họ tên *</label><input id="empName" placeholder="Nguyễn Văn A"></div></div>
+          <div class="row"><div><label>Đơn vị</label><select id="empUnit"></select></div><div><label>Chức danh</label><input id="empTitle" placeholder="VD: Nhân viên kinh doanh"></div></div>
+          <div class="row"><div><label>Nhóm đối tượng</label><select id="empGroup"><option value="">—</option><option>Lãnh đạo</option><option>Chuyên viên</option><option>NVKD</option><option>NVKT</option><option>Khác</option></select></div><div><label>Trạng thái</label><select id="empStatus"><option value="working">Đang làm việc</option><option value="left">Nghỉ</option></select></div></div>
+          <div class="row"><div><label>Email</label><input id="empEmail" placeholder="email@vnpt.vn"></div><div><label>Số điện thoại</label><input id="empPhone" placeholder="0987654321"></div></div>
+          <label>Link Facebook cá nhân (tùy chọn)</label><input id="empFb" placeholder="https://www.facebook.com/...">
+          <div class="row" style="margin-top:14px"><button class="btn primary" id="btnAddEmp" type="button">Thêm CBCNV</button><button class="btn hidden" id="btnCancelEmp" type="button">Hủy sửa</button></div>
+        </div>
+        <div class="card"><h3>Import CBCNV từ Excel/CSV</h3>
+          <p class="muted">Hỗ trợ .xlsx, .csv. File không cần đúng mẫu: anh ánh xạ cột ở bước dưới. Hệ thống đọc cell theo kiểu dữ liệu gốc (số giữ nguyên, không strip dấu chấm/phẩy ở cell số).</p>
+          <div class="row"><div><button class="btn" id="btnEmpTemplate" type="button">⬇ Tải file mẫu import</button></div><div><input id="empFile" type="file" accept=".xlsx,.xls,.csv"></div></div>
+          <div id="empMap" class="hidden">
+            <h3 style="margin-top:14px">Ánh xạ cột <span class="muted">(bảng đối chiếu — kiểm tra trước khi import)</span></h3>
+            <div id="empMapRows"></div>
+            <p id="empDropped" class="muted" style="margin-top:8px"></p>
+            <div class="row" style="margin-top:10px">
+              <div><label>Chế độ import</label><select id="empMode"><option value="create">Tạo mới (bỏ qua mã đã có)</option><option value="update">Cập nhật (mã đã có thì ghi đè)</option><option value="replace">Thay thế toàn bộ danh sách</option></select></div>
+            </div>
+            <div style="margin-top:12px"><button class="btn primary block" id="btnDoEmpImport" type="button">Import CBCNV</button></div>
+          </div>
+          <p id="empImpMsg" class="muted" style="margin-top:10px"></p>
+          <h3 style="margin-top:14px">Xem trước (10 dòng đầu)</h3><div class="tablewrap"><table><thead id="empImpHead"></thead><tbody id="empImpPreview"></tbody></table></div>
+        </div>
+        <div class="card"><div id="empList"></div></div>
       </div>
-      <div class="card"><div id="empList"></div></div>
+      <div id="tab-accounts" class="hidden">
+        <div class="card"><h3>Thống kê hệ thống</h3><div id="adminStats" class="muted">—</div></div>
+        <div class="card"><h3>Tạo tài khoản</h3>
+          <p class="muted">Tài khoản CBCNV/Lãnh đạo <b>bắt buộc gắn mã nhân viên</b> (để nhận nhiệm vụ); admin thuần để trống mã. Mật khẩu mặc định là <b>Vnpt@2026</b> — người dùng phải đổi mật khẩu và đặt câu hỏi bí mật ở lần đăng nhập đầu tiên.</p>
+          <div class="row"><div><label>Email hoặc SĐT *</label><input id="admIdent" placeholder="email@vd.com hoặc 0987654321"></div><div><label>Họ tên</label><input id="admName"></div></div>
+          <div class="row"><div><label>Mật khẩu ban đầu *</label><input id="admPass" type="password" value="Vnpt@2026" placeholder="Tối thiểu 6 ký tự"></div><div><label>Vai trò</label><select id="admRole"><option value="employee">CBCNV</option><option value="leader">Lãnh đạo đơn vị</option><option value="admin">Admin truyền thông</option><option value="sub_admin">Sub Admin</option><option value="super_admin">Super admin</option></select></div></div>
+          <label>Mã nhân viên gắn với tài khoản (để trống = admin thuần)</label><input id="admEmpCode" placeholder="VD: NV001">
+          <div style="margin-top:12px"><button class="btn primary block" id="btnAddUser" type="button">Tạo tài khoản</button></div>
+        </div>
+        <div class="card"><h3>Người dùng</h3><div id="adminUsers"></div></div>
+        <div class="card"><h3>📜 Nhật ký hệ thống (Audit log)</h3>
+          <div class="row"><select id="auditAction"><option value="">Tất cả thao tác</option><option value="manual_verify">Xác nhận thủ công</option><option value="unlock_month">Mở khóa tháng</option><option value="close_month_finalize">Chốt tháng</option><option value="delete_submission">Xóa minh chứng</option><option value="edit_result">Sửa kết quả</option><option value="admin_reset_password">Admin đặt lại MK</option><option value="edit_user">Sửa tài khoản</option><option value="edit_employee">Sửa CBCNV</option><option value="delete_employee">Xóa CBCNV</option><option value="edit_unit">Sửa đơn vị</option><option value="delete_unit">Xóa đơn vị</option></select><button class="btn" id="btnLoadAudit" type="button">Xem</button></div>
+          <div id="auditList" style="margin-top:10px"></div>
+        </div>
+      </div>
     </section>
 
     <section id="view-units" class="view hidden">
@@ -371,22 +389,6 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
       <div class="card"><button class="btn danger block" id="btnLogout" type="button">Đăng xuất</button></div>
     </section>
 
-    <section id="view-admin" class="view hidden">
-      <h2>🛡️ Quản trị</h2>
-      <div class="card"><h3>Thống kê hệ thống</h3><div id="adminStats" class="muted">—</div></div>
-      <div class="card"><h3>Tạo tài khoản</h3>
-        <p class="muted">Tài khoản CBCNV/Lãnh đạo <b>bắt buộc gắn mã nhân viên</b> (để nhận nhiệm vụ); admin thuần để trống mã. Mật khẩu mặc định là <b>Vnpt@2026</b> — người dùng phải đổi mật khẩu và đặt câu hỏi bí mật ở lần đăng nhập đầu tiên.</p>
-        <div class="row"><div><label>Email hoặc SĐT *</label><input id="admIdent" placeholder="email@vd.com hoặc 0987654321"></div><div><label>Họ tên</label><input id="admName"></div></div>
-        <div class="row"><div><label>Mật khẩu ban đầu *</label><input id="admPass" type="password" value="Vnpt@2026" placeholder="Tối thiểu 6 ký tự"></div><div><label>Vai trò</label><select id="admRole"><option value="employee">CBCNV</option><option value="leader">Lãnh đạo đơn vị</option><option value="admin">Admin truyền thông</option><option value="sub_admin">Sub Admin</option><option value="super_admin">Super admin</option></select></div></div>
-        <label>Mã nhân viên gắn với tài khoản (để trống = admin thuần)</label><input id="admEmpCode" placeholder="VD: NV001">
-        <div style="margin-top:12px"><button class="btn primary block" id="btnAddUser" type="button">Tạo tài khoản</button></div>
-      </div>
-      <div class="card"><h3>Người dùng</h3><div id="adminUsers"></div></div>
-      <div class="card"><h3>📜 Nhật ký hệ thống (Audit log)</h3>
-        <div class="row"><select id="auditAction"><option value="">Tất cả thao tác</option><option value="manual_verify">Xác nhận thủ công</option><option value="unlock_month">Mở khóa tháng</option><option value="close_month_finalize">Chốt tháng</option><option value="delete_submission">Xóa minh chứng</option><option value="edit_result">Sửa kết quả</option><option value="admin_reset_password">Admin đặt lại MK</option><option value="edit_user">Sửa tài khoản</option><option value="edit_employee">Sửa CBCNV</option><option value="delete_employee">Xóa CBCNV</option><option value="edit_unit">Sửa đơn vị</option><option value="delete_unit">Xóa đơn vị</option></select><button class="btn" id="btnLoadAudit" type="button">Xem</button></div>
-        <div id="auditList" style="margin-top:10px"></div>
-      </div>
-    </section>
   </div>
 
   <nav class="bottomnav" id="bottomnav"></nav>
@@ -519,17 +521,17 @@ function logout(silent){
 }
 
 /* ================= State & điều hướng ================= */
-const state={user:null,units:[],unitsAll:[],campaigns:[],posts:[],view:"dashboard",submitPostId:null,manualSubId:null,closeFilter:"all",repRows:[],repDetail:[],repPosts:[],empImpRows:[],empImpHeaders:[],empImpCells:[],emps:[],adminUsers:[],editEmpId:null,editUnitId:null,editUserId:null};
+const state={user:null,units:[],unitsAll:[],campaigns:[],posts:[],view:"dashboard",personnelTab:"emps",submitPostId:null,manualSubId:null,closeFilter:"all",repRows:[],repDetail:[],repPosts:[],empImpRows:[],empImpHeaders:[],empImpCells:[],emps:[],adminUsers:[],editEmpId:null,editUnitId:null,editUserId:null};
 const NAV=[
   ["dashboard","🏠","Tổng quan"],["tasks","✅","Nhiệm vụ của tôi"],["campaigns","🎯","Chiến dịch"],
   ["posts","📰","Bài truyền thông"],["monitor","🔎","Giám sát đơn vị"],["attention","🔴","Cần quan tâm"],
-  ["close","🔒","Chốt tháng"],["reports","📊","Báo cáo"],["employees","👥","CBCNV"],
-  ["units","🏢","Đơn vị"],["notifs","🔔","Thông báo"],["settings","⚙️","Cài đặt"],["admin","🛡️","Quản trị"]
+  ["close","🔒","Chốt tháng"],["reports","📊","Báo cáo"],["personnel","👥","Quản lý nhân sự"],
+  ["units","🏢","Đơn vị"],["notifs","🔔","Thông báo"],["settings","⚙️","Cài đặt"]
 ];
 function navVisible(it){
   const u=state.user;if(!u)return false;
-  if(it[0]==="admin")return isAdminRole();
-  if(it[0]==="campaigns"||it[0]==="posts"||it[0]==="employees"||it[0]==="units"||it[0]==="close")return isAdminRole();
+  if(it[0]==="personnel")return isAdminRole();
+  if(it[0]==="campaigns"||it[0]==="posts"||it[0]==="units"||it[0]==="close")return isAdminRole();
   if(it[0]==="tasks")return true;
   // CBCNV chỉ thấy Tổng quan (số liệu cá nhân) + Nhiệm vụ của tôi + Thông báo + Cài đặt.
   // Giám sát đơn vị / Cần quan tâm / Báo cáo là số liệu đơn vị-toàn tỉnh, không cho CBCNV xem.
@@ -576,13 +578,25 @@ function go(view){
   if(view==="attention")loadAttention();
   if(view==="close")loadClose();
   if(view==="reports")loadReports();
-  if(view==="employees"){loadUnitsIntoSelects();loadEmps();}
+  if(view==="personnel")showPersonnelTab(state.personnelTab||"emps");
   if(view==="units")loadUnits();
   if(view==="notifs")loadNotifs();
   if(view==="settings")fillSettings();
-  if(view==="admin")loadAdmin();
   window.scrollTo(0,0);
 }
+/* ================= Quản lý nhân sự: 2 tab trong 1 panel ================= */
+// Module "Quản lý nhân sự" gộp 2 mục cũ "CBCNV" + "Quản trị": tab "CBCNV"
+// (thêm/sửa/xóa CBCNV, import Excel) và tab "Tài khoản người dùng"
+// (tạo tài khoản, gắn mã NV, cấp sub_admin, đặt lại MK, khóa/mở khóa, audit log).
+function showPersonnelTab(tab){
+  state.personnelTab=tab;
+  show("tab-emps",tab==="emps");show("tab-accounts",tab==="accounts");
+  $("tabBtnEmps").classList.toggle("on",tab==="emps");
+  $("tabBtnAccounts").classList.toggle("on",tab==="accounts");
+  if(tab==="emps"){loadUnitsIntoSelects();loadEmps();}else{loadAdmin();}
+}
+// Mở module Quản lý nhân sự ở đúng tab (để các nơi khác điều hướng tới).
+function goPersonnel(tab){state.personnelTab=tab||"emps";go("personnel");}
 function showApp(on){
   show("firstLoginView",false);
   show("authView",!on);show("appView",on);
