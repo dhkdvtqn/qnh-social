@@ -323,7 +323,7 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
         <p id="perFormMsg" class="muted" style="margin-top:8px"></p>
       </div>
       <div class="card"><h3>Import nhân sự từ Excel/CSV</h3>
-        <p class="muted">Hỗ trợ .xlsx, .csv. File không cần đúng mẫu: anh ánh xạ cột ở bước dưới. Hệ thống đọc cell theo kiểu dữ liệu gốc (số giữ nguyên, không strip dấu chấm/phẩy ở cell số). Dòng nào có <b>Email hoặc SĐT hợp lệ sẽ tự tạo luôn tài khoản đăng nhập</b> (mật khẩu mặc định Vnpt@2026, bắt buộc đổi ở lần đăng nhập đầu); dòng không có Email/SĐT thì chỉ tạo hồ sơ, ghi rõ "Chưa có tài khoản".</p>
+        <p class="muted">Hỗ trợ .xlsx, .csv. File không cần đúng mẫu: anh ánh xạ cột ở bước dưới. Hệ thống đọc cell theo kiểu dữ liệu gốc (số giữ nguyên, không strip dấu chấm/phẩy ở cell số). Dòng nào có <b>User đăng nhập</b> (hoặc Email/SĐT) hợp lệ sẽ tự tạo luôn tài khoản đăng nhập — mật khẩu lấy theo cột <b>Mật khẩu</b>, để trống thì dùng mặc định Vnpt@2026, bắt buộc đổi ở lần đăng nhập đầu; dòng không có User/Email/SĐT thì chỉ tạo hồ sơ, ghi rõ "Chưa có tài khoản".</p>
         <div class="row"><div><button class="btn" id="btnEmpTemplate" type="button">⬇ Tải file mẫu import</button></div><div><input id="empFile" type="file" accept=".xlsx,.xls,.csv"></div></div>
         <div id="empMap" class="hidden">
           <h3 style="margin-top:14px">Ánh xạ cột <span class="muted">(bảng đối chiếu — kiểm tra trước khi import)</span></h3>
@@ -1088,7 +1088,7 @@ function typedValue(cell){
   if(cell.t==="b")return cell.v?"TRUE":"FALSE";
   return cell.v==null?"":String(cell.v);
 }
-const EMP_FIELDS=[["","— Bỏ qua cột này —"],["code","Mã nhân viên *"],["full_name","Họ tên *"],["unit_name","Đơn vị"],["title","Chức danh"],["group_name","Nhóm đối tượng"],["email","Email"],["phone","Số điện thoại"],["facebook_url","Facebook URL"],["status","Trạng thái"]];
+const EMP_FIELDS=[["","— Bỏ qua cột này —"],["code","Mã nhân viên *"],["full_name","Họ tên *"],["login","User đăng nhập"],["password","Mật khẩu (để trống = Vnpt@2026)"],["unit_name","Đơn vị"],["title","Chức danh"],["group_name","Nhóm đối tượng"],["email","Email"],["phone","Số điện thoại"],["facebook_url","Facebook URL"],["status","Trạng thái"]];
 function normHeader(h){
   return String(h||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").toLowerCase().trim();
 }
@@ -1099,6 +1099,8 @@ function guessEmpField(h){
   if(/don vi|phong|trung tam/.test(n))return "unit_name";
   if(/chuc danh/.test(n))return "title";
   if(/nhom/.test(n))return "group_name";
+  if(/user|dang nhap|tai khoan/.test(n))return "login";
+  if(/mat khau|password/.test(n))return "password";
   if(/email/.test(n))return "email";
   if(/dien thoai|sdt|so dt|phone/.test(n))return "phone";
   if(/facebook|fb/.test(n))return "facebook_url";
@@ -1341,9 +1343,9 @@ async function doEmpImport(){
 }
 function downloadEmpTemplate(){
   const data=[
-    ["Mã nhân viên","Họ tên","Đơn vị","Chức danh","Nhóm đối tượng","Email","Số điện thoại","Facebook URL","Trạng thái"],
-    ["NV001","Nguyễn Văn A","Hạ Long","Nhân viên kinh doanh","NVKD","a@vnpt.vn","0987654321","https://www.facebook.com/nguyenvana","Đang làm việc"],
-    ["NV002","Trần Thị B","Cẩm Phả","Chuyên viên","Chuyên viên","","0912345678","","Đang làm việc"]
+    ["Mã nhân viên","Họ tên","User đăng nhập","Mật khẩu","Đơn vị","Chức danh","Nhóm đối tượng","Email","Số điện thoại","Facebook URL","Trạng thái"],
+    ["NV001","Nguyễn Văn A","a@vnpt.vn","Vnpt@2026","Hạ Long","Nhân viên kinh doanh","NVKD","a@vnpt.vn","0987654321","https://www.facebook.com/nguyenvana","Đang làm việc"],
+    ["NV002","Trần Thị B","0912345678","","Cẩm Phả","Chuyên viên","Chuyên viên","","0912345678","","Đang làm việc"]
   ];
   const ws=XLSX.utils.aoa_to_sheet(data);
   const wb=XLSX.utils.book_new();

@@ -856,12 +856,14 @@ export default {
         .bind(uid, String(b.file_name || ""), mode, rows.length, imported, skipped).run();
       await audit(env, uid, "import_employees", "employees", `Import CBCNV (${mode}): ${imported}/${rows.length} dòng`, null, { mode, imported, skipped });
       // Tự tạo tài khoản đăng nhập cho từng dòng import (đính chính 09/11/2026):
-      // lấy Email làm user đăng nhập, nếu không có thì lấy SĐT; mật khẩu mặc
-      // định Vnpt@2026, bắt buộc đổi ở lần đăng nhập đầu (must_change_password=1);
-      // vai trò suy ra từ Nhóm (Lãnh đạo -> leader, còn lại employee), KHÔNG
-      // bao giờ tick SubAdmin qua import. Dòng không có Email/SĐT hợp lệ thì
-      // chỉ tạo hồ sơ, ghi rõ "Chưa có tài khoản".
+      // lấy cột User đăng nhập nếu có, nếu không thì lấy Email, cuối cùng lấy
+      // SĐT; mật khẩu lấy theo cột Mật khẩu (đủ 6 ký tự mới dùng, còn lại dùng
+      // mặc định Vnpt@2026), bắt buộc đổi ở lần đăng nhập đầu
+      // (must_change_password=1); vai trò suy ra từ Nhóm (Lãnh đạo -> leader,
+      // còn lại employee), KHÔNG bao giờ tick SubAdmin qua import. Dòng không
+      // có User/Email/SĐT hợp lệ thì chỉ tạo hồ sơ, ghi rõ "Chưa có tài khoản".
       const defaultHash = await hashPassword("Vnpt@2026");
+      const hashCache = new Map([["Vnpt@2026", defaultHash]]);
       let accountsCreated = 0, accountsExisting = 0;
       const noAccount = [], accountsSkipped = [];
       for (const r of rows) {
@@ -870,16 +872,22 @@ export default {
         if (!code || !name) continue;
         const emp = await env.DB.prepare("SELECT id, group_name FROM employees WHERE code = ?").bind(code).first();
         if (!emp) continue;
-        const ident = normIdentifier(r.email) || normIdentifier(r.phone);
-        if (!ident) { noAccount.push({ code, reason: "Không có email/SĐT hợp lệ để tạo tài khoản" }); continue; }
+        const ident = normIdentifier(r.login) || normIdentifier(r.email) || normIdentifier(r.phone);
+        if (!ident) { noAccount.push({ code, reason: "Không có user đăng nhập/email/SĐT hợp lệ để tạo tài khoản" }); continue; }
         const linked = await env.DB.prepare("SELECT id FROM users WHERE employee_id = ?").bind(emp.id).first();
         if (linked) { accountsExisting++; continue; }
         const taken = await env.DB.prepare("SELECT id, employee_id FROM users WHERE email = ?").bind(ident).first();
         if (taken) { accountsSkipped.push({ code, reason: "User đăng nhập " + ident + " đã tồn tại" }); continue; }
         const role = String(r.group_name || "") === "Lãnh đạo" ? "leader" : "employee";
+        const pw = String(r.password || "").trim();
+        let hash = defaultHash;
+        if (pw.length >= 6) {
+          if (!hashCache.has(pw)) hashCache.set(pw, await hashPassword(pw));
+          hash = hashCache.get(pw);
+        }
         await env.DB.prepare(
           "INSERT INTO users (email, password_hash, full_name, role, employee_id, must_change_password) VALUES (?, ?, ?, ?, ?, 1)"
-        ).bind(ident, defaultHash, name, role, emp.id).run();
+        ).bind(ident, hash, name, role, emp.id).run();
         accountsCreated++;
       }
       await audit(env, uid, "import_employees_accounts", "employees", `Import tự tạo ${accountsCreated} tài khoản đăng nhập`, null,

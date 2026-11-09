@@ -2,7 +2,7 @@
 ### Hệ thống giám sát chia sẻ bài viết truyền thông — VNPT Quảng Ninh
 
 > Trang web: https://dhkdvtqn.github.io/qnh-social/
-> Phiên bản tài liệu: v5 (09/11/2026) — đính chính theo yêu cầu: **module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab** (thay thế hoàn toàn bản 2 tab ở v4) — 1 form duy nhất tạo đồng thời hồ sơ CBCNV + tài khoản đăng nhập; import Excel tự tạo tài khoản đăng nhập cho dòng có Email/SĐT; 1 danh sách thống nhất có lọc theo đơn vị + tìm kiếm không dấu; phân quyền xem số liệu theo nhóm đối tượng "Lãnh đạo" (đơn vị + đơn vị trực thuộc; chỉ lãnh đạo tỉnh xem toàn tỉnh). Các thay đổi trước: v4 — gộp "Quản trị" + "CBCNV" thành 1 module 2 tab (đã thay bằng bản v5); v3 — bỏ đăng ký tự do, chỉ admin tạo tài khoản, mật khẩu mặc định Vnpt@2026, bắt buộc đổi mật khẩu + đặt câu hỏi bí mật ở lần đăng nhập đầu tiên; v2 — vai trò Sub Admin, nhóm "Chuyên viên", sửa/xóa CBCNV, sửa/xóa đơn vị (chọn đơn vị cha), gắn mã NV cho tài khoản có sẵn.
+> Phiên bản tài liệu: v5.1 (09/11/2026) — sửa nhỏ: **làm lại file mẫu import nhân sự** theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
 > Mỗi lần hệ thống thay đổi, tài liệu này được cập nhật lại. Bản PDF đi kèm được tạo từ chính file này.
 
 ---
@@ -161,11 +161,13 @@ Bấm **Thêm nhân sự**: hệ thống tạo đồng thời **1 hồ sơ CBCNV
 
 ### 6.2. Nhập hàng loạt bằng Excel — tự tạo tài khoản
 
+**File mẫu import** (nút **Tải file mẫu**, tên file `QNH-Social-mau-import-CBCNV.xlsx`) có đủ 11 cột theo đúng form tạo nhân sự: Mã nhân viên, Họ tên, **User đăng nhập**, **Mật khẩu**, Đơn vị, Chức danh, Nhóm đối tượng, Email, Số điện thoại, Facebook URL, Trạng thái. Cột **User đăng nhập** điền email hoặc số điện thoại làm tài khoản đăng nhập; cột **Mật khẩu** để trống thì dùng mặc định `Vnpt@2026` (điền mật khẩu riêng nếu muốn đặt khác, tối thiểu 6 ký tự).
+
 Vào **Quản lý nhân sự → Import nhân sự từ Excel/CSV**: bấm **Tải file mẫu** → điền danh sách vào file → chọn file → hệ thống hiện **bảng đối chiếu cột** (cột nào trong file ứng với trường nào) và liệt kê **cột bị loại bỏ** → kiểm tra đúng rồi mới bấm **Import nhân sự**. Có 3 chế độ: Tạo mới / Cập nhật / Thay thế (thay thế hỏi xác nhận; chế độ Thay thế xóa trước cả tài khoản CBCNV cũ để tránh trùng user đăng nhập — tài khoản admin/sub_admin/super_admin được giữ lại).
 
-**Điểm mới:** mỗi dòng có **Email hoặc SĐT hợp lệ sẽ tự tạo luôn tài khoản đăng nhập** cho người đó (mật khẩu mặc định `Vnpt@2026`, bắt buộc đổi ở lần đăng nhập đầu, vai trò suy ra từ Nhóm, không tick SubAdmin qua import). Nếu người đó đã có tài khoản gắn với mã NV thì hệ thống bỏ qua việc tạo tài khoản. Nếu dòng không có Email/SĐT thì chỉ tạo hồ sơ, ghi rõ **"Chưa có tài khoản"**.
+**Tự tạo tài khoản:** mỗi dòng có **User đăng nhập** (nếu trống thì lấy Email, cuối cùng lấy SĐT) hợp lệ sẽ tự tạo luôn tài khoản đăng nhập cho người đó (mật khẩu theo cột Mật khẩu, để trống = `Vnpt@2026`, bắt buộc đổi ở lần đăng nhập đầu, vai trò suy ra từ Nhóm, không tick SubAdmin qua import). Nếu người đó đã có tài khoản gắn với mã NV thì hệ thống bỏ qua việc tạo tài khoản. Nếu dòng không có User/Email/SĐT thì chỉ tạo hồ sơ, ghi rõ **"Chưa có tài khoản"**.
 
-Sau import, hệ thống báo rõ: số hồ sơ tạo mới/cập nhật, số tài khoản tạo mới, số dòng không tạo được tài khoản (kèm lý do, VD: "Không có email/SĐT hợp lệ" hoặc "User đăng nhập đã tồn tại"). Danh sách nhân sự hiển thị toàn bộ nhân sự đã import thành công.
+Sau import, hệ thống báo rõ: số hồ sơ tạo mới/cập nhật, số tài khoản tạo mới, số dòng không tạo được tài khoản (kèm lý do, VD: "Không có user/email/SĐT hợp lệ" hoặc "User đăng nhập đã tồn tại"). Danh sách nhân sự hiển thị toàn bộ nhân sự đã import thành công.
 
 ### 6.3. Danh sách nhân sự — lọc, tìm kiếm, sửa/xóa/khóa/mở
 
@@ -211,7 +213,7 @@ Trong form nhân sự (mục 6.1 hoặc khi Sửa ở mục 6.3), tick checkbox 
 | Hiện tượng | Nguyên nhân và cách xử lý |
 |---|---|
 | "Tài khoản chưa gắn với CBCNV nào" | Tài khoản chưa gắn mã nhân viên — admin làm theo mục 6.3 |
-| Sau import, một số người hiện "Chưa có tài khoản" | Dòng đó không có Email/SĐT hợp lệ để tạo tài khoản — bấm Sửa ở dòng đó, nhập User đăng nhập (email/SĐT) rồi Lưu là hệ thống tạo tài khoản (mục 6.3). Dòng báo "User đăng nhập đã tồn tại" là do email/SĐT đó đã gắn với người khác |
+| Sau import, một số người hiện "Chưa có tài khoản" | Dòng đó không có User đăng nhập/Email/SĐT hợp lệ để tạo tài khoản — bấm Sửa ở dòng đó, nhập User đăng nhập (email/SĐT) rồi Lưu là hệ thống tạo tài khoản (mục 6.3). Dòng báo "User đăng nhập đã tồn tại" là do email/SĐT đó đã gắn với người khác |
 | Khai báo link bị báo "Link đã được sử dụng" | Link này đã có người khai báo trước — kiểm tra lại xem có nhầm link bài gốc hay link của người khác không |
 | Khai báo link bị báo "Link không hợp lệ" | Link không phải bài Facebook, là link rút gọn, hoặc là link bài gốc — lấy đúng link bài chia sẻ của mình |
 | Link mãi ở "Chờ xác minh" | Facebook hạn chế truy cập tự động — admin kiểm tra thủ công, xem mục 5.3 |

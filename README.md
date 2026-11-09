@@ -97,13 +97,15 @@ localStorage (như MyMoney), mọi dữ liệu nghiệp vụ qua Worker → D1.
    rõ cột bị loại bỏ, 3 chế độ Tạo mới / Cập nhật / Thay thế (thay thế hỏi
    confirm; chế độ Thay thế xóa trước cả tài khoản CBCNV cũ để tránh trùng
    user đăng nhập — tài khoản admin/sub_admin/super_admin được giữ lại).
-   **Mỗi dòng import có Email hoặc SĐT hợp lệ sẽ tự tạo luôn tài khoản
-   đăng nhập** (mật khẩu mặc định `Vnpt@2026`, `must_change_password=1`,
+   **Mỗi dòng import có User đăng nhập (nếu trống thì lấy Email, cuối cùng
+   lấy SĐT) hợp lệ sẽ tự tạo luôn tài khoản đăng nhập** (mật khẩu lấy theo
+   cột Mật khẩu, để trống = mặc định `Vnpt@2026`, `must_change_password=1`,
    role suy ra từ Nhóm, KHÔNG tick SubAdmin qua import); đã có tài khoản
-   gắn mã NV đó thì bỏ qua; không có Email/SĐT thì chỉ tạo hồ sơ, ghi rõ
+   gắn mã NV đó thì bỏ qua; không có User/Email/SĐT thì chỉ tạo hồ sơ, ghi rõ
    "Chưa có tài khoản". Kết quả import báo rõ: số hồ sơ tạo mới/cập nhật,
    số tài khoản tạo mới, số dòng không tạo được tài khoản (kèm lý do). Có
-   nút tải file mẫu import. **Danh sách nhân sự thống nhất** (1 danh sách
+   nút tải file mẫu import (11 cột theo đúng form tạo nhân sự, gồm User đăng
+   nhập và Mật khẩu). **Danh sách nhân sự thống nhất** (1 danh sách
    duy nhất): mỗi dòng = 1 con người — Mã NV, Họ tên, Đơn vị, Nhóm, User
    đăng nhập, Email, SĐT, Facebook, Trạng thái, Quyền (badge SubAdmin),
    Tài khoản (Đã có/Chưa có + Đang hoạt động/Đã khóa); hành động từng
