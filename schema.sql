@@ -24,6 +24,8 @@ PRAGMA foreign_keys = ON;
 
 -- 1) Tài khoản đăng nhập ------------------------------------------------------
 -- role: super_admin (quản trị toàn hệ thống) | admin (admin truyền thông) |
+--       sub_admin (phó admin: quyền như admin, trừ gán/thu hồi sub_admin và
+--       sửa tài khoản super_admin — chỉ super_admin làm được) |
 --       leader (lãnh đạo đơn vị) | employee (CBCNV).
 -- employee_id: tài khoản gắn với 1 CBCNV (role employee/leader). Admin thuần
 -- để NULL. Một CBCNV chỉ gắn tối đa 1 tài khoản (UNIQUE).
@@ -33,7 +35,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,                -- PBKDF2-SHA256: pbkdf2$iter$salt_b64$hash_b64
   full_name TEXT,
   role TEXT NOT NULL DEFAULT 'employee'
-    CHECK (role IN ('super_admin','admin','leader','employee')),
+    CHECK (role IN ('super_admin','admin','sub_admin','leader','employee')),
   employee_id INTEGER UNIQUE REFERENCES employees(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','locked')),
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -95,7 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_units_parent ON units(parent_id);
 -- 6) CBCNV ---------------------------------------------------------------------
 -- code: Mã nhân viên, khóa duy nhất. facebook_url tùy chọn.
 -- status: working (đang làm việc) | left (nghỉ) — chỉ CBCNV working được giao bài.
--- group_name: nhóm đối tượng (Lãnh đạo/NVKD/NVKT/Khác).
+-- group_name: nhóm đối tượng (Lãnh đạo/Chuyên viên/NVKD/NVKT/Khác).
 CREATE TABLE IF NOT EXISTS employees (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   code TEXT NOT NULL UNIQUE,

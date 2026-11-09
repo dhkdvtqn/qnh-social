@@ -36,14 +36,28 @@ localStorage (như MyMoney), mọi dữ liệu nghiệp vụ qua Worker → D1.
    `super_admin`. Không seed mật khẩu cứng.
 2. **Phân quyền** — `super_admin` / `admin` truyền thông (tạo chiến dịch/bài,
    giao nhiệm vụ, kiểm tra minh chứng, chốt tháng, xem toàn tỉnh, import/export);
+   **`sub_admin`** (phó admin: dùng đúng các quyền như admin — tạo chiến dịch,
+   tạo bài + giao nhiệm vụ, module Báo cáo, module Quản trị gồm CBCNV/đơn vị/
+   người dùng/import/export) với 2 NGOẠI LỆ do server chặn cứng: sub_admin
+   KHÔNG được cấp/thu hồi quyền sub_admin (chỉ super_admin gán/thu hồi),
+   KHÔNG được tạo/sửa/xóa/khóa/đặt lại mật khẩu tài khoản super_admin;
    `leader` (chỉ xem cây đơn vị mình, không sửa); `employee` (xem nhiệm vụ, mở
-   bài, khai báo link, xem kết quả cá nhân). Tài khoản gắn với 1 CBCNV
-   (`employee_id`) hoặc là admin thuần.
+   bài, khai báo link, xem kết quả cá nhân; menu chỉ còn Tổng quan + Nhiệm vụ
+   của tôi + Thông báo + Cài đặt). Tài khoản gắn với 1 CBCNV (`employee_id`)
+   hoặc là admin thuần. Một mã NV chỉ gắn tối đa 1 tài khoản.
 3. **Danh mục** — đơn vị theo cây (seed sẵn 8 đơn vị đúng thứ tự: Hạ Long,
    Uông Bí, Cẩm Phả, Tiên Yên, Móng Cái, Bãi Cháy, Đông Triều, Vân Đồn-Cô Tô;
    "Chưa xác định" cuối; "VNPT Quảng Ninh" làm gốc cây, ẩn khỏi bảng đơn vị).
+   Thêm/sửa/xóa đơn vị: khi thêm/sửa có ô chọn **Đơn vị cha** (mặc định
+   VNPT Quảng Ninh); server chặn xóa đơn vị gốc, đơn vị còn đơn vị con hoặc
+   còn CBCNV, và chặn chọn chính nó/đơn vị con làm cha (tránh vòng lặp cây);
+   đơn vị gốc sửa được tên/thứ tự nhưng không đổi được cha.
    CBCNV (mã NV duy nhất, họ tên, đơn vị, chức danh, nhóm, email, SĐT,
-   Facebook URL, trạng thái). Import Excel/CSV bằng SheetJS **đọc cell theo
+   Facebook URL, trạng thái). Nhóm đối tượng: Lãnh đạo / **Chuyên viên** /
+   NVKD / NVKT / Khác. Sửa/xóa CBCNV: sửa được mọi trường trừ mã NV (mã là
+   khóa liên kết, không cho sửa); xóa bị chặn khi CBCNV đã có nhiệm vụ hoặc
+   minh chứng — chuyển trạng thái thành "Nghỉ" thay vì xóa; mọi sửa/xóa đều
+   ghi audit log. Import Excel/CSV bằng SheetJS **đọc cell theo
    kiểu** (`.t`/`.v`, không strip dấu chấm/phẩy ở cell số), bảng đối chiếu cột
    trước khi import, liệt kê rõ cột bị loại bỏ, 3 chế độ Tạo mới / Cập nhật /
    Thay thế (thay thế hỏi confirm). Có nút tải file mẫu import.
@@ -74,7 +88,17 @@ localStorage (như MyMoney), mọi dữ liệu nghiệp vụ qua Worker → D1.
    CBCNV / bài / tháng. Thông báo trong web (bài mới, sắp hết hạn, kết quả cuối
    tháng, cảnh báo link biến mất); **không Zalo/email ở giai đoạn 1**.
 9. **Audit log** — ghi đầy đủ: sửa kết quả, xóa minh chứng, thay đổi điểm, mở
-   khóa tháng, xác nhận thủ công (người, thời gian, trước/sau, lý do).
+   khóa tháng, xác nhận thủ công (người, thời gian, trước/sau, lý do). Thêm:
+   tạo/sửa/xóa tài khoản, sửa/xóa CBCNV, thêm/sửa/xóa đơn vị, khóa/mở tài khoản.
+10. **Gắn mã nhân viên cho tài khoản có sẵn** — tài khoản tự đăng ký (hoặc
+   admin tạo mà chưa gắn mã) sẽ thấy lỗi "Tài khoản chưa gắn với CBCNV nào"
+   ở mục Nhiệm vụ của tôi và không nhận được nhiệm vụ. Cách xử lý (không
+   cần xóa tài khoản làm lại): admin/super_admin vào **Quản trị → Người dùng
+   → bấm "🔗 Gắn mã NV"** ở dòng tài khoản đó → nhập mã NV (VD: NV001) →
+   Lưu. Hệ thống kiểm tra mã có tồn tại không và mã đã gắn cho tài khoản
+   khác chưa; để trống ô mã là gỡ gắn. Cột "CBCNV gắn kèm" trong danh sách
+   Người dùng cho biết tài khoản nào đã gắn/chưa gắn. Cũng có thể gắn mã
+   ngay lúc tạo tài khoản (ô "Mã nhân viên gắn với tài khoản").
 
 ## ⚠️ GIỚI HẠN XÁC MINH FACEBOOK — ĐỌC KỸ TRƯỚC KHI DÙNG
 
@@ -199,19 +223,24 @@ qnh-social/
 
 ## Chưa làm / cần anh Tuấn quyết định
 
-1. **Chưa đẩy lên GitHub** (chưa có repo) — anh tạo repo `qnh-social` rồi đẩy
-   6 file này lên, hoặc cấp quyền để đẩy giúp.
-2. **Chưa kiểm chứng live** — chưa có D1/Worker thật nên chưa test đăng ký,
-   import, khai báo link và chốt tháng trên môi trường thật; sau khi triển khai
-   theo Bước 5 cần kiểm tra lại 1 vòng.
-3. **Xác minh Facebook** (xem mục giới hạn ở trên): oEmbed có thể trả UNKNOWN
+1. **Bản cập nhật 09/11 tối (sub_admin, sửa/xóa CBCNV/đơn vị, gắn mã NV,
+   nhóm Chuyên viên) chưa lên môi trường thật** — cần: (a) đẩy `index.html`
+   + `README.md` + `schema.sql` mới lên GitHub; (b) **dán lại `worker.js`
+   mới lên Cloudflare** (Worker `qnh-social-api`) thì các API/chặn quyền mới
+   mới có hiệu lực; (c) database D1 thật đã chạy schema cũ: Worker tự
+   migrate bảng `users` (thêm role `sub_admin` vào CHECK) ở lần gọi API đầu
+   tiên sau khi dán worker mới — kiểm tra `/api/health` vẫn trả `database:
+   "ok"` sau khi dán. Sau đó kiểm tra thử 1 vòng: super_admin cấp sub_admin
+   cho 1 tài khoản, sub_admin tạo chiến dịch/bài, sửa/xóa 1 CBCNV và 1 đơn
+   vị, gắn mã NV cho tài khoản chưa gắn.
+2. **Xác minh Facebook** (xem mục giới hạn ở trên): oEmbed có thể trả UNKNOWN
    với đa số link nếu Meta yêu cầu token — admin sẽ phải xác nhận thủ công
    nhiều trường hợp. Nếu anh có Page access token của Fanpage VNPT Quảng Ninh,
    giai đoạn sau có thể bổ sung xác minh qua Meta Graph API.
-4. **"Link cũ"** (bài chia sẻ ngoài thời gian chiến dịch): hệ thống không lấy
+3. **"Link cũ"** (bài chia sẻ ngoài thời gian chiến dịch): hệ thống không lấy
    được ngày đăng bài tự động nên chỉ gắn cờ khi khai báo trước ngày phát hành
    hoặc sau hạn — admin vẫn phải đối soát tay các trường hợp này.
-5. **Thông báo**: giai đoạn 1 chỉ có thông báo trong web. Zalo OA / email để
+4. **Thông báo**: giai đoạn 1 chỉ có thông báo trong web. Zalo OA / email để
    giai đoạn sau khi có API.
-6. **Ảnh minh chứng** (phương án dự phòng trong đề cương): chưa làm — cần
+5. **Ảnh minh chứng** (phương án dự phòng trong đề cương): chưa làm — cần
    Cloudflare R2 nếu anh muốn CBCNV tải ảnh chụp màn hình thay cho link.

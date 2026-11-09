@@ -292,9 +292,21 @@ async function requireAuth(request, env) {
   if (!user || user.status !== "active") return null;
   return user;
 }
-const isAdmin = (u) => u && (u.role === "admin" || u.role === "super_admin");
+const isAdmin = (u) => u && (u.role === "admin" || u.role === "sub_admin" || u.role === "super_admin");
 const isSuperAdmin = (u) => u && u.role === "super_admin";
 const isLeader = (u) => u && u.role === "leader";
+// Vai trò đặc quyền (chỉ super_admin được gán hoặc thu hồi).
+const PRIVILEGED_ROLES = ["sub_admin", "super_admin"];
+// Caller có được phép đặt vai trò newRole cho tài khoản target không?
+//  - super_admin: được mọi trường hợp.
+//  - người khác: KHÔNG được gán sub_admin/super_admin, KHÔNG được thu hồi
+//    (đổi role của) một tài khoản đang là sub_admin/super_admin.
+function canAssignRole(caller, target, newRole) {
+  if (isSuperAdmin(caller)) return true;
+  if (PRIVILEGED_ROLES.includes(newRole)) return false;
+  if (target && PRIVILEGED_ROLES.includes(target.role)) return false;
+  return true;
+}
 function publicUser(u) {
   return { id: u.id, email: u.email, full_name: u.full_name || "", role: u.role, employee_id: u.employee_id || null };
 }
@@ -367,9 +379,41 @@ async function ensureSecurityQuestions(env) {
     ).run();
   } catch { /* đã có bảng thì bỏ qua */ }
 }
+// Migrate: users.role CHECK cũ không có 'sub_admin' (thêm 09/11/2026).
+// Database D1 thật đã chạy schema cũ nên phải rebuild bảng users 1 lần
+// (SQLite không sửa được CHECK bằng ALTER TABLE). Có cờ settings để không
+// chạy lại. Chạy an toàn nhiều lần: nếu CHECK đã có sub_admin thì bỏ qua.
+async function ensureSubAdminRole(env) {
+  try {
+    const flag = await env.DB.prepare("SELECT value FROM settings WHERE key='migrated_sub_admin_role_v1'").first();
+    if (flag) return;
+    const row = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").first();
+    if (row && row.sql && !row.sql.includes("sub_admin")) {
+      try { await env.DB.prepare("PRAGMA foreign_keys=OFF").run(); } catch { /* D1 có thể không hỗ trợ PRAGMA */ }
+      await env.DB.prepare(`CREATE TABLE users_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        password_hash TEXT NOT NULL,
+        full_name TEXT,
+        role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('super_admin','admin','sub_admin','leader','employee')),
+        employee_id INTEGER UNIQUE REFERENCES employees(id) ON DELETE SET NULL,
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','locked')),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      )`).run();
+      await env.DB.prepare("INSERT INTO users_new (id, email, password_hash, full_name, role, employee_id, status, created_at, updated_at) SELECT id, email, password_hash, full_name, role, employee_id, status, created_at, updated_at FROM users").run();
+      await env.DB.prepare("DROP TABLE users").run();
+      await env.DB.prepare("ALTER TABLE users_new RENAME TO users").run();
+      await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)").run();
+      await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)").run();
+    }
+    await env.DB.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('migrated_sub_admin_role_v1','1')").run();
+  } catch (e) { console.error("ensureSubAdminRole failed:", e); }
+}
 // Bảng nào D1 cũ chưa có thì tự tạo (đề phòng schema.sql chưa chạy đủ).
 async function ensureSchema(env) {
   await ensureSecurityQuestions(env);
+  await ensureSubAdminRole(env);
   try {
     await env.DB.prepare(`CREATE TABLE IF NOT EXISTS monthly_locks (
       month TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'locked',
@@ -583,9 +627,19 @@ export default {
       if (!isAdmin(me)) return err(env, "Cần quyền admin", 403);
       const b = await readBody(request);
       if (!b.name || !String(b.name).trim()) return err(env, "Thiếu tên đơn vị", 422);
+      // Đơn vị cha: mặc định là gốc VNPT Quảng Ninh (is_root=1).
+      let parentId = b.parent_id ? Number(b.parent_id) : null;
+      if (!parentId) {
+        const root = await env.DB.prepare("SELECT id FROM units WHERE is_root = 1").first();
+        parentId = root ? root.id : 1;
+      } else {
+        const p = await env.DB.prepare("SELECT id FROM units WHERE id = ?").bind(parentId).first();
+        if (!p) return err(env, "Đơn vị cha không tồn tại", 422);
+      }
       const max = await env.DB.prepare("SELECT COALESCE(MAX(sort_order),0) AS m FROM units").first();
       const ins = await env.DB.prepare("INSERT INTO units (name, parent_id, sort_order) VALUES (?, ?, ?)")
-        .bind(String(b.name).trim(), b.parent_id || 1, (max?.m ?? 0) + 1).run();
+        .bind(String(b.name).trim(), parentId, (max?.m ?? 0) + 1).run();
+      await audit(env, uid, "create_unit", "units:" + ins.meta.last_row_id, "Thêm đơn vị " + String(b.name).trim(), null, { name: b.name, parent_id: parentId });
       return json(env, { ok: true, id: ins.meta.last_row_id }, 201);
     }
     const unitMatch = path.match(/^\/api\/admin\/units\/(\d+)$/);
@@ -593,16 +647,36 @@ export default {
       if (!isAdmin(me)) return err(env, "Cần quyền admin", 403);
       const target = await env.DB.prepare("SELECT * FROM units WHERE id = ?").bind(unitMatch[1]).first();
       if (!target) return err(env, "Không tìm thấy đơn vị", 404);
-      if (target.is_root) return err(env, "Không sửa/xóa đơn vị gốc VNPT Quảng Ninh", 400);
       if (request.method === "DELETE") {
+        if (target.is_root) return err(env, "Không được xóa đơn vị gốc VNPT Quảng Ninh", 400);
+        const child = await env.DB.prepare("SELECT COUNT(*) AS c FROM units WHERE parent_id = ?").bind(target.id).first();
+        if (child?.c > 0) return err(env, "Đơn vị còn " + child.c + " đơn vị con — xóa hoặc chuyển đơn vị con sang đơn vị khác trước", 409);
         const used = await env.DB.prepare("SELECT COUNT(*) AS c FROM employees WHERE unit_id = ?").bind(target.id).first();
         if (used?.c > 0) return err(env, "Đơn vị còn CBCNV — chuyển CBCNV sang đơn vị khác trước khi xóa", 409);
         await env.DB.prepare("DELETE FROM units WHERE id = ?").bind(target.id).run();
+        await audit(env, uid, "delete_unit", "units:" + target.id, "Xóa đơn vị " + target.name, target, null);
         return json(env, { ok: true });
       }
+      // PUT — sửa tên, thứ tự, đơn vị cha. Đơn vị gốc được sửa tên/thứ tự
+      // nhưng KHÔNG đổi được đơn vị cha (luôn giữ NULL).
       const b = await readBody(request);
-      await env.DB.prepare("UPDATE units SET name = ?, parent_id = ? WHERE id = ?")
-        .bind(String(b.name || target.name).trim(), b.parent_id || target.parent_id, target.id).run();
+      let parentId = target.parent_id;
+      if (b.parent_id !== undefined && b.parent_id !== null && b.parent_id !== "") {
+        if (target.is_root) return err(env, "Đơn vị gốc VNPT Quảng Ninh không đổi được đơn vị cha", 400);
+        const pid = Number(b.parent_id);
+        if (pid === target.id) return err(env, "Không chọn chính đơn vị này làm đơn vị cha", 422);
+        const p = await env.DB.prepare("SELECT id FROM units WHERE id = ?").bind(pid).first();
+        if (!p) return err(env, "Đơn vị cha không tồn tại", 422);
+        const desc = await unitSubtreeIds(env, target.id);
+        if (desc.includes(pid)) return err(env, "Không chọn đơn vị con của chính nó làm đơn vị cha (tạo vòng lặp cây)", 422);
+        parentId = pid;
+      }
+      const before = { ...target };
+      const sortOrder = (b.sort_order !== undefined && b.sort_order !== null && b.sort_order !== "")
+        ? Number(b.sort_order) : target.sort_order;
+      await env.DB.prepare("UPDATE units SET name = ?, parent_id = ?, sort_order = ? WHERE id = ?")
+        .bind(String(b.name || target.name).trim(), target.is_root ? null : parentId, sortOrder, target.id).run();
+      await audit(env, uid, "edit_unit", "units:" + target.id, "Sửa đơn vị " + target.name, before, b);
       return json(env, { ok: true });
     }
 
@@ -646,14 +720,21 @@ export default {
       if (request.method === "DELETE") {
         const used = await env.DB.prepare("SELECT COUNT(*) AS c FROM assignments WHERE employee_id = ?").bind(target.id).first();
         if (used?.c > 0) return err(env, "CBCNV đã có nhiệm vụ được giao — chuyển trạng thái thành 'Nghỉ' thay vì xóa", 409);
+        const subs = await env.DB.prepare("SELECT COUNT(*) AS c FROM share_submissions WHERE employee_id = ?").bind(target.id).first();
+        if (subs?.c > 0) return err(env, "CBCNV đã có minh chứng chia sẻ — chuyển trạng thái thành 'Nghỉ' thay vì xóa", 409);
         await env.DB.prepare("DELETE FROM employees WHERE id = ?").bind(target.id).run();
+        await audit(env, uid, "delete_employee", "employees:" + target.id, "Xóa CBCNV " + target.code + " — " + target.full_name, target, null);
         return json(env, { ok: true });
       }
       const b = await readBody(request);
+      // Mã nhân viên là khóa liên kết (tài khoản, nhiệm vụ, minh chứng) —
+      // KHÔNG cho sửa. Cần đổi mã thì tạo CBCNV mới rồi gắn lại tài khoản.
+      if (b.code !== undefined && String(b.code).trim() !== target.code)
+        return err(env, "Mã nhân viên không được sửa (là khóa liên kết) — tạo CBCNV mới nếu cần đổi mã", 422);
       const before = { ...target };
       await env.DB.prepare(
-        "UPDATE employees SET code=?, full_name=?, unit_id=?, title=?, group_name=?, email=?, phone=?, facebook_url=?, status=?, updated_at=? WHERE id=?"
-      ).bind(String(b.code ?? target.code).trim(), String(b.full_name ?? target.full_name).trim(),
+        "UPDATE employees SET full_name=?, unit_id=?, title=?, group_name=?, email=?, phone=?, facebook_url=?, status=?, updated_at=? WHERE id=?"
+      ).bind(String(b.full_name ?? target.full_name).trim(),
         b.unit_id ?? target.unit_id, String(b.title ?? target.title ?? ""), String(b.group_name ?? target.group_name ?? ""),
         String(b.email ?? target.email ?? ""), String(b.phone ?? target.phone ?? ""),
         String(b.facebook_url ?? target.facebook_url ?? ""), b.status || target.status, nowIso(), target.id).run();
@@ -1605,11 +1686,13 @@ export default {
         const identifier = normIdentifier(b.identifier ?? b.email);
         if (!identifier) return err(env, "Nhập email hoặc số điện thoại hợp lệ", 422);
         if (!b.password || String(b.password).length < 6) return err(env, "Mật khẩu tối thiểu 6 ký tự", 422);
-        const role = ["super_admin", "admin", "leader", "employee"].includes(b.role) ? b.role : "employee";
-        if (role === "super_admin" && !isSuperAdmin(me)) return err(env, "Chỉ super_admin mới được tạo super_admin", 403);
+        const role = ["super_admin", "admin", "sub_admin", "leader", "employee"].includes(b.role) ? b.role : "employee";
+        if (PRIVILEGED_ROLES.includes(role) && !isSuperAdmin(me)) return err(env, "Chỉ super_admin mới được gán quyền sub_admin / super_admin", 403);
         const exists = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(identifier).first();
         if (exists) return err(env, "Email hoặc số điện thoại này đã được đăng ký", 409);
         if (b.employee_id) {
+          const emp = await env.DB.prepare("SELECT id FROM employees WHERE id = ?").bind(b.employee_id).first();
+          if (!emp) return err(env, "Không tìm thấy CBCNV với mã nhân viên này", 422);
           const taken = await env.DB.prepare("SELECT id FROM users WHERE employee_id = ?").bind(b.employee_id).first();
           if (taken) return err(env, "CBCNV này đã gắn với một tài khoản khác", 409);
         }
@@ -1622,7 +1705,11 @@ export default {
       const lockMatch = path.match(/^\/api\/admin\/users\/(\d+)\/(lock|unlock)$/);
       if (lockMatch && request.method === "POST") {
         if (Number(lockMatch[1]) === uid) return err(env, "Không tự khóa chính mình", 400);
+        const target = await env.DB.prepare("SELECT role FROM users WHERE id = ?").bind(lockMatch[1]).first();
+        if (!target) return err(env, "Không tìm thấy người dùng", 404);
+        if (target.role === "super_admin" && !isSuperAdmin(me)) return err(env, "Chỉ super_admin mới được khóa/mở tài khoản super_admin", 403);
         await env.DB.prepare("UPDATE users SET status = ? WHERE id = ?").bind(lockMatch[2] === "lock" ? "locked" : "active", lockMatch[1]).run();
+        await audit(env, uid, lockMatch[2] === "lock" ? "lock_user" : "unlock_user", "users:" + lockMatch[1], (lockMatch[2] === "lock" ? "Khóa" : "Mở khóa") + " tài khoản user_id=" + lockMatch[1], target, null);
         return json(env, { ok: true });
       }
       const resetMatch = path.match(/^\/api\/admin\/users\/(\d+)\/reset-password$/);
@@ -1630,8 +1717,9 @@ export default {
         const b = await readBody(request);
         if (Number(resetMatch[1]) === uid) return err(env, "Đổi mật khẩu của chính mình thì dùng Cài đặt → Đổi mật khẩu", 400);
         if (!b.new_password || String(b.new_password).length < 6) return err(env, "Mật khẩu mới tối thiểu 6 ký tự", 422);
-        const target = await env.DB.prepare("SELECT id FROM users WHERE id = ?").bind(resetMatch[1]).first();
+        const target = await env.DB.prepare("SELECT id, role FROM users WHERE id = ?").bind(resetMatch[1]).first();
         if (!target) return err(env, "Không tìm thấy người dùng", 404);
+        if (target.role === "super_admin" && !isSuperAdmin(me)) return err(env, "Chỉ super_admin mới được đặt lại mật khẩu cho tài khoản super_admin", 403);
         await env.DB.batch([
           env.DB.prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?").bind(await hashPassword(String(b.new_password)), nowIso(), target.id),
           env.DB.prepare("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL").bind(nowIso(), target.id),
@@ -1639,18 +1727,45 @@ export default {
         ]);
         return json(env, { ok: true });
       }
-      // Gắn / đổi vai trò / gắn CBCNV cho tài khoản.
+      // Gắn / đổi vai trò / gắn CBCNV / đổi trạng thái cho tài khoản có sẵn.
+      // Quyền: chỉ super_admin được gán hoặc thu hồi sub_admin/super_admin,
+      // và chỉ super_admin được sửa tài khoản super_admin. Người khác đổi
+      // vai trò của tài khoản thường thì được, nhưng không được nâng lên
+      // sub_admin/super_admin và không được chạm vào super_admin.
       const roleMatch = path.match(/^\/api\/admin\/users\/(\d+)$/);
       if (roleMatch && request.method === "PUT") {
         const b = await readBody(request);
         const target = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(roleMatch[1]).first();
         if (!target) return err(env, "Không tìm thấy người dùng", 404);
-        const role = ["super_admin", "admin", "leader", "employee"].includes(b.role) ? b.role : target.role;
-        if (role === "super_admin" && !isSuperAdmin(me)) return err(env, "Chỉ super_admin mới được gán super_admin", 403);
-        await env.DB.prepare("UPDATE users SET full_name=?, role=?, employee_id=?, updated_at=? WHERE id=?")
-          .bind(String(b.full_name ?? target.full_name ?? ""), role,
-            b.employee_id === null ? null : (b.employee_id || target.employee_id), nowIso(), target.id).run();
-        await audit(env, uid, "edit_user", "users:" + target.id, "Sửa tài khoản " + target.email, target, { role, employee_id: b.employee_id ?? target.employee_id });
+        if (target.role === "super_admin" && !isSuperAdmin(me))
+          return err(env, "Chỉ super_admin mới được sửa tài khoản super_admin", 403);
+        const newRole = (b.role !== undefined && ["super_admin", "admin", "sub_admin", "leader", "employee"].includes(b.role))
+          ? b.role : target.role;
+        if (newRole !== target.role && !canAssignRole(me, target, newRole))
+          return err(env, "Chỉ super_admin mới được gán hoặc thu hồi quyền sub_admin / super_admin", 403);
+        // Gắn CBCNV: kiểm tra mã tồn tại; 1 mã chỉ gắn tối đa 1 tài khoản.
+        // Gửi employee_id = null (hoặc "") để gỡ gắn.
+        let newEmpId = target.employee_id;
+        if (b.employee_id === null || b.employee_id === "") newEmpId = null;
+        else if (b.employee_id !== undefined) {
+          const emp = await env.DB.prepare("SELECT id FROM employees WHERE id = ?").bind(b.employee_id).first();
+          if (!emp) return err(env, "Không tìm thấy CBCNV với mã nhân viên này", 422);
+          const taken = await env.DB.prepare("SELECT id FROM users WHERE employee_id = ? AND id != ?").bind(b.employee_id, target.id).first();
+          if (taken) return err(env, "CBCNV này đã gắn với một tài khoản khác", 409);
+          newEmpId = b.employee_id;
+        }
+        let newStatus = target.status;
+        if (b.status !== undefined) {
+          if (!["active", "locked"].includes(b.status)) return err(env, "Trạng thái không hợp lệ", 422);
+          if (Number(roleMatch[1]) === uid && b.status === "locked") return err(env, "Không tự khóa chính mình", 400);
+          newStatus = b.status;
+        }
+        const before = { ...target };
+        delete before.password_hash; // không ghi hash mật khẩu vào audit log
+        await env.DB.prepare("UPDATE users SET full_name=?, role=?, employee_id=?, status=?, updated_at=? WHERE id=?")
+          .bind(String(b.full_name ?? target.full_name ?? ""), newRole, newEmpId, newStatus, nowIso(), target.id).run();
+        await audit(env, uid, "edit_user", "users:" + target.id, "Sửa tài khoản " + target.email,
+          before, { role: newRole, employee_id: newEmpId, status: newStatus });
         return json(env, { ok: true });
       }
       if (path === "/api/admin/stats" && request.method === "GET") {
