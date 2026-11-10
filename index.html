@@ -234,7 +234,8 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
         <h3>Thêm bài viết cần chia sẻ</h3>
         <label>Chiến dịch</label><select id="postCamp"></select>
         <label>Tiêu đề bài viết</label><input id="postTitle" placeholder="VD: FIFA U17 World Cup 2026 – MyTV">
-        <label>Link bài gốc trên Fanpage VNPT Quảng Ninh</label><input id="postUrl" placeholder="https://www.facebook.com/.../posts/...">
+        <label>Link bài gốc trên Fanpage VNPT Quảng Ninh</label><input id="postUrl" placeholder="https://www.facebook.com/.../posts/pfbid...">
+        <p class="muted">Dán nguyên link đã sao chép từ bài viết trên Fanpage — Facebook hiện thường đưa link dạng .../posts/pfbid... và đó là link hợp lệ (dạng số .../posts/123... cũng dùng được). Không cắt bớt link.</p>
         <div class="row"><div><label>Ngày phát hành</label><input id="postPub" type="date"></div><div><label>Hạn chia sẻ</label><input id="postDeadline" type="date"></div><div><label>Tháng áp dụng</label><input id="postMonth" type="month"></div></div>
         <div class="row">
           <div><label>Đối tượng</label><select id="postScope"><option value="all">Toàn tỉnh</option><option value="unit">Một đơn vị cụ thể</option></select></div>
@@ -393,8 +394,8 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
     <h2>Xác nhận đã chia sẻ</h2>
     <p class="muted" id="submitModalInfo"></p>
     <label>URL bài chia sẻ trên Facebook *</label>
-    <input id="submitUrl" type="url" placeholder="https://www.facebook.com/.../posts/...">
-    <p class="muted" style="margin-top:8px">Dán link bài anh/chị vừa chia sẻ (không phải link bài gốc trên Fanpage). Hệ thống kiểm tra định dạng, chuẩn hóa, kiểm tra trùng và xác minh link có tồn tại. <b>Điểm chỉ được tính khi link còn tồn tại tại thời điểm chốt tháng.</b></p>
+    <input id="submitUrl" type="url" placeholder="https://www.facebook.com/.../posts/pfbid...">
+    <p class="muted" style="margin-top:8px">Dán link bài anh/chị vừa chia sẻ (không phải link bài gốc trên Fanpage). Link chia sẻ thường có dạng .../posts/pfbid... — đó là link hợp lệ, cứ dán nguyên link đã sao chép, không cắt bớt. Hệ thống kiểm tra định dạng, chuẩn hóa, kiểm tra trùng và xác minh link có tồn tại. <b>Điểm chỉ được tính khi link còn tồn tại tại thời điểm chốt tháng.</b></p>
     <div class="row" style="margin-top:16px">
       <button class="btn primary" id="btnDoSubmit" type="button">Gửi minh chứng</button>
       <button class="btn" id="btnCloseSubmit" type="button">Đóng</button>

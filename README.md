@@ -301,13 +301,36 @@ qnh-social/
 ├── schema.sql      # D1 schema: 19 bảng + seed 10 đơn vị + settings
 ├── wrangler.jsonc  # Worker qnh-social-api, D1 qnh-social-db, cron 2 ngày/lần
 ├── docs/
-│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v9)
+│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v10)
 └── README.md       # File này
 ```
 
 ## Chưa làm / cần anh Tuấn quyết định
 
-1. **Đợt 9 (09/11/2026, bỏ ngoại lệ "Ban lãnh đạo" + ô chọn đơn vị có VNPT Quảng Ninh — BẢN MỚI NHẤT):**
+1. **Đợt 10 (10/11/2026, chấp nhận link Facebook dạng pfbid — BẢN MỚI NHẤT):**
+   Link bài viết dạng `.../posts/pfbid...` (Protected Facebook ID — định dạng
+   Facebook sinh ra khi bấm "Sao chép liên kết" từ khoảng 2022) trước đây bị
+   hệ thống từ chối vì `extractFbIds` chỉ trích được Post ID dạng số → tạo
+   bài với link pfbid báo "Link bài gốc không hợp lệ". Nay `extractFbIds`
+   nhận `pfbid[0-9A-Za-z]{10,}` sau posts/videos/reel/photo/permalink/story,
+   ở cuối path, và trong tham số `fbid`/`story_fbid` (kể cả
+   `permalink.php?story_fbid=pfbid...` và `story.php?story_fbid=pfbid...`);
+   `fb_post_id` lưu nguyên chuỗi pfbid (cột TEXT, không đổi ra số); thông báo
+   lỗi `NOT_A_POST_URL` đã nêu cả 2 dạng link. Đã rà soát: dedup theo
+   `canonical_url` (chuỗi) không ảnh hưởng; `verifyFacebookPost` chỉ coi 404
+   là NOT_FOUND, lỗi 400 oEmbed (Meta đã ngừng oEmbed không xác thực) vẫn ra
+   UNKNOWN — "Chờ xác minh" để admin kiểm mẫu khi chốt tháng; giao diện cập
+   nhật placeholder + ghi chú ở 2 ô link (tạo bài và khai báo minh chứng).
+   **Đợt này CÓ thay đổi `worker.js`** — cần: (a) đẩy `index.html` +
+   `worker.js` + `README.md` + `docs/huong-dan-su-dung.md` mới lên GitHub;
+   (b) **dán lại `worker.js` mới lên Cloudflare** (Worker `qnh-social-api`)
+   thì các thay đổi phía máy chủ mới có hiệu lực; (c) kiểm tra `/api/health`
+   vẫn trả `database: "ok"` sau khi dán (không cần chạy lại schema — không
+   đổi schema). Sau đó kiểm tra thử 1 vòng: tạo bài với đúng link
+   `https://www.facebook.com/vinaphonequangninh/posts/pfbid02nN5o8PbigLsRmQk9YJGnaAAfdc4NiorjnSUSEbhzJSuUAjFnuHn8EJDVdaUcpxYnl`
+   phải tạo được bài (không còn báo lỗi); khai báo minh chứng bằng link chia
+   sẻ dạng pfbid cũng được chấp nhận. Kiểm tra bằng harness: 26/26 PASS.
+2. **Đợt 9 (09/11/2026, bỏ ngoại lệ "Ban lãnh đạo" + ô chọn đơn vị có VNPT Quảng Ninh):**
    (a) **Bỏ hẳn ngoại lệ "Ban lãnh đạo"** (đổi so với đợt 8): lãnh đạo chỉ xem
    **đúng đơn vị mình**, không còn ngoại lệ theo tên đơn vị — `isProvinceWideLeader`
    chỉ còn điều kiện đơn vị gốc, `isProvinceWideFE` tương tự; `tongdangdung@vnpt.vn`
@@ -326,7 +349,7 @@ qnh-social/
    đăng nhập bằng `hant.qnh@vnpt.vn` → chỉ thấy VNPT Hạ Long (không đổi); gán 1 lãnh
    đạo về VNPT Quảng Ninh trong Quản lý nhân sự → tài khoản đó xem toàn tỉnh.
    Kiểm tra bằng harness: 55/55 PASS.
-2. **Đợt 8 (09/11/2026, nút Đăng xuất + VNPT Quảng Ninh toàn tỉnh + siết phạm vi lãnh đạo — ĐÃ BỊ ĐỢT 9 SỬA PHẦN NGOẠI LỆ "Ban lãnh đạo"):**
+3. **Đợt 8 (09/11/2026, nút Đăng xuất + VNPT Quảng Ninh toàn tỉnh + siết phạm vi lãnh đạo — ĐÃ BỊ ĐỢT 9 SỬA PHẦN NGOẠI LỆ "Ban lãnh đạo"):**
    (a) nút **"🚪 Đăng xuất"** ngay dưới nút **Cài đặt** trong menu trái
    (và cuối danh sách menu ☰ trên điện thoại); (b) module **Giám sát đơn vị**
    thêm lựa chọn **"VNPT Quảng Ninh (toàn tỉnh)"** — chỉ user có phạm vi toàn
@@ -350,7 +373,7 @@ qnh-social/
    đơn vị khác bị chặn; nút Đăng xuất nằm ngay dưới Cài đặt. (Bước kiểm tra
    `tongdangdung@vnpt.vn` xem toàn tỉnh đã đổi ở đợt 9: giờ chỉ thấy Ban lãnh
    đạo.) Kiểm tra bằng harness: 44/44 PASS.
-3. **Đợt 7 (09/11/2026, siết quyền Admin truyền thông):**
+4. **Đợt 7 (09/11/2026, siết quyền Admin truyền thông):**
    role `admin` **chỉ được XEM** ở module Quản lý nhân sự và Đơn vị (không
    được thêm/sửa/xóa nhân sự, tài khoản hay đơn vị, kể cả import) — server
    chặn cứng bằng `canManagePersonnel` ở mọi endpoint ghi của 2 module,
@@ -365,7 +388,7 @@ qnh-social/
    danh sách, không có form/nút ghi) → thử gọi API thêm/sửa nhân sự hoặc
    đơn vị bằng tài khoản đó phải trả 403; đăng nhập bằng sub_admin vẫn
    thêm/sửa/xóa được; admin vẫn tạo được chiến dịch/bài và chốt tháng.
-4. **Đợt 5 (09/11/2026, đính chính module Quản lý nhân sự — BẢN NÀY THAY
+5. **Đợt 5 (09/11/2026, đính chính module Quản lý nhân sự — BẢN NÀY THAY
    THẾ HOÀN TOÀN bản 2 tab ở đợt 4):** 1 form duy nhất tạo đồng thời hồ sơ
    CBCNV + tài khoản đăng nhập; import tự tạo tài khoản; 1 danh sách thống
    nhất có lọc đơn vị + tìm kiếm không dấu; phân quyền xem số liệu theo
@@ -387,14 +410,14 @@ qnh-social/
    (Các đợt 2+3 trước đó — sub_admin, bỏ đăng ký tự do, mật khẩu mặc định,
    bắt buộc đổi MK + đặt câu hỏi bí mật lần đầu — cũng cần dán worker.js
    1 lần; dán 1 lần kích hoạt tất cả.)
-5. **Xác minh Facebook** (xem mục giới hạn ở trên): oEmbed có thể trả UNKNOWN
+6. **Xác minh Facebook** (xem mục giới hạn ở trên): oEmbed có thể trả UNKNOWN
    với đa số link nếu Meta yêu cầu token — admin sẽ phải xác nhận thủ công
    nhiều trường hợp. Nếu anh có Page access token của Fanpage VNPT Quảng Ninh,
    giai đoạn sau có thể bổ sung xác minh qua Meta Graph API.
-6. **"Link cũ"** (bài chia sẻ ngoài thời gian chiến dịch): hệ thống không lấy
+7. **"Link cũ"** (bài chia sẻ ngoài thời gian chiến dịch): hệ thống không lấy
    được ngày đăng bài tự động nên chỉ gắn cờ khi khai báo trước ngày phát hành
    hoặc sau hạn — admin vẫn phải đối soát tay các trường hợp này.
-7. **Thông báo**: giai đoạn 1 chỉ có thông báo trong web. Zalo OA / email để
+8. **Thông báo**: giai đoạn 1 chỉ có thông báo trong web. Zalo OA / email để
    giai đoạn sau khi có API.
-8. **Ảnh minh chứng** (phương án dự phòng trong đề cương): chưa làm — cần
+9. **Ảnh minh chứng** (phương án dự phòng trong đề cương): chưa làm — cần
    Cloudflare R2 nếu anh muốn CBCNV tải ảnh chụp màn hình thay cho link.

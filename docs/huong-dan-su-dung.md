@@ -2,7 +2,7 @@
 ### Hệ thống giám sát chia sẻ bài viết truyền thông — VNPT Quảng Ninh
 
 > Trang web: https://dhkdvtqn.github.io/qnh-social/
-> Phiên bản tài liệu: v9 (09/11/2026) — **(1) BỎ ngoại lệ "Ban lãnh đạo" (đổi so với v8): lãnh đạo chỉ xem ĐÚNG đơn vị của mình, không còn ngoại lệ theo tên đơn vị — lãnh đạo đơn vị "Ban lãnh đạo" giờ cũng chỉ xem Ban lãnh đạo; muốn xem toàn tỉnh thì đưa tài khoản về đơn vị gốc VNPT Quảng Ninh; (2) ô chọn Đơn vị ở module Quản lý nhân sự đã có "VNPT Quảng Ninh" để gán user về cấp tỉnh.** Các thay đổi trước: v8 — nút "Đăng xuất" ngay dưới nút "Cài đặt" trong menu; module Giám sát đơn vị thêm lựa chọn "VNPT Quảng Ninh (toàn tỉnh)"; siết phạm vi xem của nhóm "Lãnh đạo": chỉ xem ĐÚNG đơn vị của mình, không gồm đơn vị con; v7 — siết quyền Admin truyền thông: chỉ được XEM ở module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa; v6 — làm lại file mẫu import nhân sự và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
+> Phiên bản tài liệu: v10 (10/11/2026) — **chấp nhận link Facebook dạng pfbid (VD .../posts/pfbid...): cả link bài gốc khi tạo bài và link minh chứng khi CBCNV khai báo đều dùng được; link pfbid là link đúng chuẩn do Facebook sinh ra khi bấm "Sao chép liên kết", không cần tìm link dạng số.** Các thay đổi trước: v9 — (1) BỎ ngoại lệ "Ban lãnh đạo" (đổi so với v8): lãnh đạo chỉ xem ĐÚNG đơn vị của mình, không còn ngoại lệ theo tên đơn vị — lãnh đạo đơn vị "Ban lãnh đạo" giờ cũng chỉ xem Ban lãnh đạo; muốn xem toàn tỉnh thì đưa tài khoản về đơn vị gốc VNPT Quảng Ninh; (2) ô chọn Đơn vị ở module Quản lý nhân sự đã có "VNPT Quảng Ninh" để gán user về cấp tỉnh.** Các thay đổi trước: v8 — nút "Đăng xuất" ngay dưới nút "Cài đặt" trong menu; module Giám sát đơn vị thêm lựa chọn "VNPT Quảng Ninh (toàn tỉnh)"; siết phạm vi xem của nhóm "Lãnh đạo": chỉ xem ĐÚNG đơn vị của mình, không gồm đơn vị con; v7 — siết quyền Admin truyền thông: chỉ được XEM ở module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa; v6 — làm lại file mẫu import nhân sự và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
 > Mỗi lần hệ thống thay đổi, tài liệu này được cập nhật lại. Bản PDF đi kèm được tạo từ chính file này.
 
 ---
@@ -78,12 +78,14 @@ Vào mục **Nhiệm vụ của tôi**. Mỗi bài cần chia sẻ hiện: tên 
 2. Chia sẻ bài viết **công khai** lên trang cá nhân hoặc vào hội nhóm theo yêu cầu của bài.
 3. Sau khi chia sẻ, bấm vào bài chia sẻ của bạn trên Facebook, chọn **Sao chép liên kết**.
 
+**Cách lấy link đúng:** mở bài viết trên Fanpage → bấm dấu **"..."** ở góc bài → **"Sao chép liên kết"** (Copy link) → dán nguyên link vào hệ thống, không cắt bớt. Lưu ý: Facebook hiện thường đưa link dạng `.../posts/pfbid...` — đó là link đúng chuẩn, cứ dán nguyên như vậy, không cần tìm link dạng số `.../posts/123...`.
+
 ### Bước 3. Khai báo link minh chứng
 
 1. Quay lại hệ thống, bấm **Xác nhận đã chia sẻ**.
 2. Dán link bài chia sẻ vừa sao chép, bấm **Gửi**.
 3. Hệ thống kiểm tra ngay:
-   - Link đúng định dạng Facebook, đúng là link **bài đã chia sẻ** (không phải link bài gốc, không phải link rút gọn).
+   - Link đúng định dạng Facebook, đúng là link **bài đã chia sẻ** (không phải link bài gốc, không phải link rút gọn). Hệ thống chấp nhận cả 2 dạng link: `.../posts/123...` (dạng số) và `.../posts/pfbid...` (dạng Facebook sinh ra khi "Sao chép liên kết").
    - Link **chưa từng** được ai khai báo trước đó.
    - Nếu đạt: trạng thái **Đã khai báo (chờ xác minh)**. Nếu không đạt: hệ thống báo rõ lý do, bạn kiểm tra lại link và gửi lại.
 
@@ -109,7 +111,7 @@ Vào **Chiến dịch → Tạo chiến dịch**, nhập: tên chiến dịch, m
 
 Vào **Bài truyền thông → Thêm bài**, nhập:
 
-- **Link bài gốc** trên Fanpage VNPT Quảng Ninh.
+- **Link bài gốc** trên Fanpage VNPT Quảng Ninh — dán nguyên link đã sao chép từ bài viết (mở bài trên Fanpage → dấu "..." → "Sao chép liên kết"); hệ thống chấp nhận cả dạng `.../posts/123...` và dạng `.../posts/pfbid...`.
 - **Ngày phát hành** và **hạn chia sẻ**.
 - **Đối tượng**: toàn tỉnh hoặc một đơn vị cụ thể.
 - **Mức bắt buộc** và **trọng số điểm**: bài thường 1 điểm, bài trọng tâm 2 điểm, bài chiến dịch lớn 3 điểm.
@@ -220,7 +222,8 @@ Trong form nhân sự (mục 6.1 hoặc khi Sửa ở mục 6.3), tick checkbox 
 | "Tài khoản chưa gắn với CBCNV nào" | Tài khoản chưa gắn mã nhân viên — admin làm theo mục 6.3 |
 | Sau import, một số người hiện "Chưa có tài khoản" | Dòng đó không có User đăng nhập/Email/SĐT hợp lệ để tạo tài khoản — bấm Sửa ở dòng đó, nhập User đăng nhập (email/SĐT) rồi Lưu là hệ thống tạo tài khoản (mục 6.3). Dòng báo "User đăng nhập đã tồn tại" là do email/SĐT đó đã gắn với người khác |
 | Khai báo link bị báo "Link đã được sử dụng" | Link này đã có người khai báo trước — kiểm tra lại xem có nhầm link bài gốc hay link của người khác không |
-| Khai báo link bị báo "Link không hợp lệ" | Link không phải bài Facebook, là link rút gọn, hoặc là link bài gốc — lấy đúng link bài chia sẻ của mình |
+| Khai báo link bị báo "Link không hợp lệ" | Link không phải bài Facebook, là link rút gọn, hoặc là link bài gốc — lấy đúng link bài chia sẻ của mình (xem cách lấy link ở mục 4, bước 2) |
+| Tạo bài / khai báo link dạng `.../posts/pfbid...` bị báo không hợp lệ | Đã sửa từ bản v10: link pfbid là link đúng chuẩn, hệ thống đã chấp nhận — nếu vẫn báo lỗi, kiểm tra xem đã dán `worker.js` mới lên Cloudflare chưa |
 | Link mãi ở "Chờ xác minh" | Facebook hạn chế truy cập tự động — admin kiểm tra thủ công, xem mục 5.3 |
 | Không chốt tháng được | Còn trường hợp "Chờ xác minh" chưa xử lý — xử lý hết rồi mới bấm Chốt chính thức (mục 5.3) |
 | Nhập Excel báo thiếu cột | Bảng đối chiếu chưa ánh xạ cột Mã nhân viên — ánh xạ lại cột Mã nhân viên và Họ tên rồi import |

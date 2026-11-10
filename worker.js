@@ -188,9 +188,14 @@ const SHORT_DOMAINS = new Set([
 const FB_HOSTS = new Set(["facebook.com", "www.facebook.com", "m.facebook.com", "fb.com", "web.facebook.com"]);
 
 // Trích Post ID / Story ID từ path + query của URL Facebook.
+// Post ID có thể là số (dạng cũ .../posts/123...) hoặc chuỗi pfbid
+// (Protected Facebook ID — định dạng Facebook dùng khi bấm "Sao chép
+// liên kết" từ khoảng 2022: .../posts/pfbid...). pfbid không đổi ngược
+// ra số được nếu không có Graph API nên lưu nguyên chuỗi.
 function extractFbIds(pathname, searchParams) {
   let postId = null, userId = null;
-  const m = pathname.match(/\/(?:posts|videos|reel|reels|photo|photos|permalink|story)\/(\d+)/)
+  const m = pathname.match(/\/(?:posts|videos|reel|reels|photo|photos|permalink|story)\/(pfbid[0-9A-Za-z]{10,}|\d+)/)
+    || pathname.match(/\/(pfbid[0-9A-Za-z]{10,})\/?$/)
     || pathname.match(/\/(\d{6,})\/?$/);
   if (m) postId = m[1];
   const fbid = searchParams.get("fbid") || searchParams.get("story_fbid");
@@ -229,9 +234,9 @@ function canonicalizeFacebookUrl(raw) {
   const { postId, userId } = extractFbIds(path, keep);
   // Một link bài Facebook hợp lệ phải trỏ tới một bài cụ thể (posts/videos/
   // reel/photo/permalink/story hoặc có fbid), không phải trang cá nhân/trang chủ.
-  if (!postId && !/\/groups\/\d+\/permalink\/\d+/.test(path) && !/\/share\//.test(path)) {
+  if (!postId && !/\/groups\/\d+\/permalink\/(\d+|pfbid[0-9A-Za-z]{10,})/.test(path) && !/\/share\//.test(path)) {
     return { ok: false, error: "NOT_A_POST_URL", canonical, fb_post_id: null, fb_user_id: userId,
-      message: "Link này không trỏ tới một bài viết cụ thể trên Facebook — hãy dán link của bài đã chia sẻ (dạng .../posts/123...)" };
+      message: "Link này không trỏ tới một bài viết cụ thể trên Facebook — hãy dán link của bài đã chia sẻ (dạng .../posts/123... hoặc .../posts/pfbid...)" };
   }
   return { ok: true, canonical, fb_post_id: postId, fb_user_id: userId };
 }
