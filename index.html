@@ -892,7 +892,7 @@ async function loadDashboard(){
     $("kZeroSub").textContent="CBCNV 0% — không thực hiện";
     const top=d.top_units&&d.top_units[0];
     $("kTop").textContent=top?("🥇 "+top.unit_name):"—";
-    $("kTopSub").textContent=top?(top.rate+"% hoàn thành"):"Chưa có số liệu";
+    $("kTopSub").textContent=top?(top.rate+"% hoàn thành"):"Chưa có đơn vị đạt kết quả";
     $("kRetain").textContent=d.retention_rate+"%";
     $("kPublish").textContent=d.publish.submitted_rate+"% / "+d.publish.valid_rate+"% / "+d.publish.invalid_rate+"%";
     $("kPosts").textContent=k.total_posts;
@@ -905,7 +905,7 @@ async function loadDashboard(){
       const cls=u.rate>=90?"g":u.rate>=70?"y":"r";
       return '<div class="unitbar"><div class="nm">'+esc(u.unit_name)+'</div><div class="tr"><i class="'+cls+'" style="width:'+Math.min(100,u.rate)+'%"></i><span class="stdline" style="left:70%"></span></div><div class="pc">'+u.rate+'%</div></div>';
     }).join("")||'<p class="muted">Chưa có số liệu đơn vị trong tháng này.</p>';
-    $("topUnits").innerHTML=(d.top_units||[]).map(function(u,i){return '<div class="list-item"><div class="ic">'+["🥇","🥈","🥉"][i]+"</div><div class='mid'><div class='t'>"+esc(u.unit_name)+'</div><div class="s">'+u.valid+"/"+u.assigned+' nhiệm vụ</div></div><b>'+u.rate+'%</b></div>';}).join("")||'<p class="muted">—</p>';
+    $("topUnits").innerHTML=(d.top_units||[]).map(function(u,i){return '<div class="list-item"><div class="ic">'+["🥇","🥈","🥉"][i]+"</div><div class='mid'><div class='t'>"+esc(u.unit_name)+'</div><div class="s">'+u.valid+"/"+u.assigned+' nhiệm vụ</div></div><b>'+u.rate+'%</b></div>';}).join("")||'<p class="muted">Chưa có đơn vị nào có kết quả — tất cả đang ở 0%.</p>';
     $("needUnits").innerHTML=(d.need_improve||[]).map(function(u){return '<div class="list-item"><div class="ic">⚠️</div><div class="mid"><div class="t">'+esc(u.unit_name)+'</div><div class="s">'+u.employees+' CBCNV thuộc diện</div></div><b class="bad">'+u.rate+'%</b></div>';}).join("")||'<p class="muted">Không có đơn vị nào dưới 70% 🎉</p>';
     $("compareBox").innerHTML=(d.compare||[]).map(function(c){
       const diff=c.diff===null?"—":(c.diff>0?"+":"")+c.diff+" điểm %";

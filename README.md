@@ -3,6 +3,12 @@
 > **Tên hiển thị:** VNPT QUẢNG NINH — HỆ THỐNG GIÁM SÁT CHIA SẺ TRUYỀN THÔNG
 > **Tên ngắn:** QNH Social
 >
+> **Phiên bản v13 — 10/11/2026 ("Top đơn vị" chỉ tính đơn vị có kết quả > 0%):**
+> **Nguyên nhân lỗi:** `/api/dashboard` lấy Top bằng `ranked.slice(0, 3)` không lọc — khi tất cả đơn vị đang 0% thì 3 đơn vị đầu danh sách (VNPT Hạ Long, Uông Bí, Cẩm Phả — 0%) vẫn lọt vào "Top đơn vị" và đơn vị 0% đầu tiên thành "xếp hạng 1" ở thẻ KPI, trong khi các đơn vị này đồng thời nằm trong "Đơn vị cần cải thiện (<70%)" — mâu thuẫn.
+> **Quy tắc mới:** "Top đơn vị" chỉ gồm đơn vị có tỷ lệ hoàn thành **> 0%**, tối đa 3, xếp theo tỷ lệ **giảm dần**; hòa tỷ lệ thì số nhiệm vụ hợp lệ giảm dần, rồi tên đơn vị (thứ tự ổn định). Nếu chỉ 1–2 đơn vị đạt > 0% thì Top chỉ hiện 1–2 đơn vị đó; nếu **không có đơn vị nào > 0%** thì mục Top trống ("Chưa có đơn vị nào có kết quả — tất cả đang ở 0%") và thẻ KPI "Xếp hạng đơn vị" hiển thị "— / Chưa có đơn vị đạt kết quả". "Điểm tin truyền thông" cũng không nêu đơn vị "thực hiện tốt nhất" khi tất cả 0%. Không đổi: mục "Đơn vị cần cải thiện (<70%)" vẫn gồm đơn vị 0% (đúng); danh sách đầy đủ "Tỷ lệ hoàn thành theo đơn vị" giữ nguyên.
+> **Đợt này CÓ thay đổi `worker.js` → cần dán lại lên Cloudflare 1 lần**
+> (xem "Chưa làm" mục 1).
+>
 > **Phiên bản v12 — 10/11/2026 (tên đơn vị đầy đủ ở Tổng quan + Sửa/Xóa chiến dịch & bài viết + giờ Việt Nam ở Lịch sử):**
 > (1) **Tổng quan:** tên đơn vị ở mục "Tỷ lệ hoàn thành theo đơn vị" hiển thị đầy đủ 100% — tên dài tự xuống dòng, không còn bị cắt thành "Trung tâm Viễn t...".
 > (2) **Sửa/Xóa chiến dịch và bài viết:** mỗi chiến dịch và mỗi bài trong danh sách có thêm nút "Sửa" (mở lại form đã điền sẵn dữ liệu) và "Xóa" cạnh nút "Giao lại". Máy chủ đã có sẵn PUT/DELETE chiến dịch (xóa chiến dịch còn bài thì 409); PUT/DELETE bài được siết thêm: **xóa bài bị chặn 409 nếu bài đã có minh chứng khai báo**, **sửa bài kiểm tra lại link gốc nếu đổi**, chặn chuyển bài sang tháng đã khóa, **đổi phạm vi thì giao thêm nhiệm vụ cho CBCNV mới thuộc phạm vi** (giữ nguyên nhiệm vụ và link đã khai báo). Chỉ super_admin/sub_admin/admin được sửa/xóa (đúng phân quyền truyền thông).

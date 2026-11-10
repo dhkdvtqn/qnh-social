@@ -38,7 +38,7 @@ const RESET_TTL_SECONDS = 60 * 60;      // 1 giờ
 const PBKDF2_ITER = 100000;
 const STANDARD_RATE = 70;               // đường chuẩn 70%
 const GREEN_THRESHOLD = 90;             // xanh >= 90%
-const WORKER_VERSION = "v12";           // hiện ở /api/health để biết Worker đang chạy bản nào
+const WORKER_VERSION = "v13";           // hiện ở /api/health để biết Worker đang chạy bản nào
 
 // ---------- Tiện ích mã hóa (giữ đúng mẫu MyMoney) ---------------------------
 function b64urlEncode(bytes) {
@@ -1540,7 +1540,14 @@ async function fetchHandler(request, env) {
           assigned: a, valid: v, rate: ap ? round1(vp / ap * 100) : 0,
           color: ap && vp / ap * 100 >= GREEN_THRESHOLD ? "green" : ap && vp / ap * 100 >= STANDARD_RATE ? "yellow" : "red" };
       }).filter((u) => u.employees > 0 || u.assigned > 0);
-      const ranked = [...unitStats].sort((a, b) => b.rate - a.rate);
+      // Xếp hạng đơn vị: tỷ lệ giảm dần; hòa tỷ lệ thì số nhiệm vụ hợp lệ
+      // giảm dần, rồi tên đơn vị (thứ tự ổn định).
+      const ranked = [...unitStats].sort((a, b) => b.rate - a.rate || b.valid - a.valid
+        || String(a.unit_name).localeCompare(String(b.unit_name), "vi"));
+      // Top đơn vị (v13): CHỈ đơn vị có tỷ lệ > 0% mới vào Top, tối đa 3.
+      // Trước đây lấy 3 đầu tiên không lọc nên đơn vị 0% vẫn lọt vào Top
+      // (và thành "xếp hạng 1" ở thẻ KPI) — sai logic.
+      const topUnits = ranked.filter((u) => u.rate > 0).slice(0, 3);
       // So sánh tháng T vs T-1 (đơn vị tăng/giảm mạnh nhất).
       const prev = prevMonth(month);
       let compare = [];
@@ -1562,7 +1569,9 @@ async function fetchHandler(request, env) {
       const bestUp = movers.length ? [...movers].sort((a, b) => b.diff - a.diff)[0] : null;
       const worstDown = movers.length ? [...movers].sort((a, b) => a.diff - b.diff)[0] : null;
       // "Điểm tin truyền thông" tự sinh (đề cương 1 mục 16).
-      const topUnit = ranked[0] || null;
+      // Đơn vị tốt nhất lấy từ Top (> 0%) nên khi tất cả 0% thì không nêu
+      // đơn vị nào là "tốt nhất". Đơn vị thấp nhất vẫn nêu đúng thực tế.
+      const topUnit = topUnits[0] || null;
       const bottomUnit = ranked.length ? ranked[ranked.length - 1] : null;
       const under70Units = unitStats.filter((u) => u.rate < STANDARD_RATE).map((u) => u.unit_name);
       const prevRateAll = compare.length && compare[0].prev_rate !== null
@@ -1582,7 +1591,7 @@ async function fetchHandler(request, env) {
         publish: { submitted_rate: submittedRate, valid_rate: completionRate, invalid_rate: invalidRate },
         retention_rate: retentionRate,
         units: ranked, compare, best_up: bestUp, worst_down: worstDown,
-        top_units: ranked.slice(0, 3), need_improve: ranked.filter((u) => u.rate < STANDARD_RATE),
+        top_units: topUnits, need_improve: ranked.filter((u) => u.rate < STANDARD_RATE),
         news });
     }
     // Dashboard đơn vị: bảng CBCNV × bài (✓/×) + tỷ lệ.
