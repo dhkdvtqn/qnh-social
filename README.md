@@ -3,6 +3,13 @@
 > **Tên hiển thị:** VNPT QUẢNG NINH — HỆ THỐNG GIÁM SÁT CHIA SẺ TRUYỀN THÔNG
 > **Tên ngắn:** QNH Social
 >
+> **Phiên bản v12 — 10/11/2026 (tên đơn vị đầy đủ ở Tổng quan + Sửa/Xóa chiến dịch & bài viết + giờ Việt Nam ở Lịch sử):**
+> (1) **Tổng quan:** tên đơn vị ở mục "Tỷ lệ hoàn thành theo đơn vị" hiển thị đầy đủ 100% — tên dài tự xuống dòng, không còn bị cắt thành "Trung tâm Viễn t...".
+> (2) **Sửa/Xóa chiến dịch và bài viết:** mỗi chiến dịch và mỗi bài trong danh sách có thêm nút "Sửa" (mở lại form đã điền sẵn dữ liệu) và "Xóa" cạnh nút "Giao lại". Máy chủ đã có sẵn PUT/DELETE chiến dịch (xóa chiến dịch còn bài thì 409); PUT/DELETE bài được siết thêm: **xóa bài bị chặn 409 nếu bài đã có minh chứng khai báo**, **sửa bài kiểm tra lại link gốc nếu đổi**, chặn chuyển bài sang tháng đã khóa, **đổi phạm vi thì giao thêm nhiệm vụ cho CBCNV mới thuộc phạm vi** (giữ nguyên nhiệm vụ và link đã khai báo). Chỉ super_admin/sub_admin/admin được sửa/xóa (đúng phân quyền truyền thông).
+> (3) **Lịch sử ở Chốt tháng:** ngày giờ trong log kiểm tra hiển thị theo **giờ Việt Nam (UTC+7)**; dữ liệu vẫn lưu ISO UTC, chỉ đổi cách hiển thị.
+> **Đợt này CÓ thay đổi `worker.js` → cần dán lại lên Cloudflare 1 lần**
+> (xem "Chưa làm" mục 1).
+>
 > **Phiên bản v11 — 10/11/2026 (sửa lỗi "Failed to fetch" khi chốt tháng + chia sẻ đa nền tảng):**
 > (1) **Nguyên nhân lỗi 500 đã tìm ra:** Cloudflare D1 chỉ cho tối đa **100 tham số
 > bind mỗi câu lệnh** — các truy vấn `IN (...)` liệt kê toàn bộ CBCNV toàn tỉnh
@@ -318,7 +325,19 @@ qnh-social/
 
 ## Chưa làm / cần anh Tuấn quyết định
 
-1. **Đợt 11 (10/11/2026, sửa lỗi "Failed to fetch" khi chốt tháng + chia sẻ đa nền tảng — BẢN MỚI NHẤT):**
+1. **Đợt 12 (10/11/2026, tên đơn vị đầy đủ + Sửa/Xóa chiến dịch & bài viết + giờ Việt Nam ở Lịch sử — BẢN MỚI NHẤT):**
+   (a) **Tổng quan:** CSS `.unitbar .nm` bỏ cắt chữ (`width:120px` + `text-overflow:ellipsis`) → tên đơn vị xuống dòng tự nhiên, hiện đủ 100% trên cả máy tính và điện thoại.
+   (b) **Sửa/Xóa chiến dịch & bài viết:** giao diện thêm nút "Sửa"/"Xóa" cho từng chiến dịch (danh sách Chiến dịch) và từng bài (cạnh nút "Giao lại"); nút Sửa mở lại form đã điền sẵn (chế độ sửa, có nút "Hủy sửa"). Máy chủ: PUT/DELETE `/api/campaigns/:id` đã có từ trước (xóa chiến dịch còn bài → 409); PUT `/api/posts/:id` nay kiểm tra lại link gốc khi đổi (422 nếu sai), chặn chuyển sang tháng đã khóa, đổi phạm vi thì gọi lại `autoAssign` để giao thêm nhiệm vụ mới (INSERT OR IGNORE nên nhiệm vụ/link cũ còn nguyên) và trả `assigned`; DELETE `/api/posts/:id` nay chặn 409 nếu bài đã có minh chứng khai báo, đồng thời xóa tay các dòng con (nhiệm vụ, log mở bài, chỉ số) vì D1 tắt FK. Phân quyền: chỉ super_admin/sub_admin/admin (`isAdmin`) được sửa/xóa — CBCNV/Lãnh đạo gọi sẽ 403.
+   (c) **Lịch sử ở Chốt tháng:** thêm hàm `fmtDateTimeVN` (client, `toLocaleString("vi-VN", {timeZone:"Asia/Ho_Chi_Minh", ...giờ:phút:giây})`) — cột "Thời gian" trong log và mốc "Khai báo" hiển thị theo giờ Việt Nam; dữ liệu lưu trữ vẫn ISO UTC.
+   **Đợt này CÓ thay đổi `worker.js`** — cần: (a) đẩy `index.html` +
+   `worker.js` + `README.md` + `docs/huong-dan-su-dung.md` mới lên GitHub;
+   (b) **dán lại `worker.js` mới lên Cloudflare** (Worker `qnh-social-api`)
+   thì các thay đổi phía máy chủ mới có hiệu lực; (c) kiểm tra `/api/health`
+   trả `database: "ok"` **và** `"version":"v12"` sau khi dán. Sau đó kiểm tra
+   thử 1 vòng: mở Tổng quan xem tên đơn vị dài ("Trung tâm Viễn thông Vân Đồn -
+   Cô Tô") hiện đủ; sửa/xóa thử 1 bài test; mở Lịch sử ở Chốt tháng xem giờ
+   Việt Nam. Kiểm tra bằng harness: xem "Kiểm tra" ở cuối file này.
+2. **Đợt 11 (10/11/2026, sửa lỗi "Failed to fetch" khi chốt tháng + chia sẻ đa nền tảng):**
    (a) **Nguyên nhân lỗi 500 đã tìm ra (xác nhận bằng harness):** Cloudflare D1
    chỉ cho tối đa **100 tham số bind mỗi câu lệnh** — các truy vấn `IN (...)`
    liệt kê toàn bộ CBCNV toàn tỉnh (hơn 100 người) ở Dashboard (`/api/dashboard`),

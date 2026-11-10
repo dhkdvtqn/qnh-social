@@ -83,7 +83,7 @@ th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;verti
 th{color:var(--muted);font-size:12px;text-transform:uppercase}
 .tablewrap{overflow-x:auto}
 .unitbar{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:14px}
-.unitbar .nm{width:120px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.unitbar .nm{flex:0 1 230px;min-width:150px;white-space:normal;overflow:visible;line-height:1.35}
 .unitbar .tr{flex:1;height:14px;background:#E2E8F0;border-radius:99px;overflow:hidden;position:relative}
 .unitbar .tr>i{display:block;height:100%}
 .unitbar .pc{width:56px;text-align:right;flex:none;font-weight:700}
@@ -219,11 +219,12 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
     <section id="view-campaigns" class="view hidden">
       <h2>Chiến dịch truyền thông</h2>
       <div class="card" id="campFormCard">
-        <h3>Tạo chiến dịch mới</h3>
+        <h3 id="campFormTitle">Tạo chiến dịch mới</h3>
         <label>Tên chiến dịch</label><input id="campName" placeholder="VD: MyTV sở hữu bản quyền FIFA U17 World Cup 2026">
         <div class="row"><div><label>Ngày bắt đầu</label><input id="campStart" type="date"></div><div><label>Ngày kết thúc</label><input id="campEnd" type="date"></div></div>
         <label>Mô tả</label><textarea id="campDesc" placeholder="Nội dung chiến dịch…"></textarea>
-        <div style="margin-top:14px"><button class="btn primary block" id="btnAddCamp" type="button">Tạo chiến dịch</button></div>
+        <div style="margin-top:14px"><button class="btn primary block" id="btnAddCamp" type="button">Tạo chiến dịch</button>
+        <button class="btn block hidden" id="btnCancelCamp" type="button" style="margin-top:8px">Hủy sửa</button></div>
       </div>
       <div class="card"><div id="campList"></div></div>
     </section>
@@ -231,7 +232,7 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
     <section id="view-posts" class="view hidden">
       <h2>Bài truyền thông</h2>
       <div class="card" id="postFormCard">
-        <h3>Thêm bài viết cần chia sẻ</h3>
+        <h3 id="postFormTitle">Thêm bài viết cần chia sẻ</h3>
         <label>Chiến dịch</label><select id="postCamp"></select>
         <label>Tiêu đề bài viết</label><input id="postTitle" placeholder="VD: FIFA U17 World Cup 2026 – MyTV">
         <label>Link bài gốc</label><input id="postUrl" placeholder="https://www.facebook.com/.../posts/pfbid...">
@@ -245,7 +246,8 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
         </div>
         <div class="row"><div><label>Yêu cầu chia sẻ</label><select id="postReq"><option value="any">Công khai / trang cá nhân / hội nhóm</option><option value="public">Chia sẻ công khai</option><option value="profile">Trang cá nhân</option><option value="group">Hội nhóm</option></select></div><div><label>Hashtag</label><input id="postTags" placeholder="#VNPTQuangNinh"></div></div>
         <label>Nội dung / hướng dẫn chia sẻ</label><textarea id="postContent" placeholder="Hướng dẫn CBCNV chia sẻ…"></textarea>
-        <div style="margin-top:14px"><button class="btn primary block" id="btnAddPost" type="button">Tạo bài &amp; giao nhiệm vụ tự động</button></div>
+        <div style="margin-top:14px"><button class="btn primary block" id="btnAddPost" type="button">Tạo bài &amp; giao nhiệm vụ tự động</button>
+        <button class="btn block hidden" id="btnCancelPost" type="button" style="margin-top:8px">Hủy sửa</button></div>
         <p class="muted" style="margin-top:8px">Khi tạo bài, hệ thống tự giao cho toàn bộ CBCNV đang làm việc thuộc phạm vi (toàn tỉnh hoặc đơn vị đã chọn) và gửi thông báo bài mới.</p>
       </div>
       <div class="card"><div class="row"><input id="postMonthFilter" type="month" style="max-width:180px"><select id="postCampFilter" style="max-width:260px"><option value="">Tất cả chiến dịch</option></select></div><div id="postList" style="margin-top:10px"></div></div>
@@ -458,6 +460,8 @@ function toast(msg,ms){const t=document.getElementById("toast");t.textContent=ms
 function $(id){return document.getElementById(id);}
 function show(id,on){$(id).classList.toggle("hidden",!on);}
 function fmtDate(d){if(!d)return "—";return String(d).slice(0,10).split("-").reverse().join("/");}
+// Ngày giờ theo giờ Việt Nam (đợt 12): log lịch sử lưu ISO UTC, hiển thị UTC+7.
+function fmtDateTimeVN(iso){if(!iso)return "—";const d=new Date(String(iso).trim().replace(" ","T"));if(isNaN(d.getTime()))return String(iso);return d.toLocaleString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});}
 function monthLabel(m){const p=String(m||"").split("-");return p.length===2?p[1]+"/"+p[0]:m;}
 function isAdminRole(){const u=me();return u&&(u.role==="admin"||u.role==="sub_admin"||u.role==="super_admin");}
 function isSuperAdminRole(){const u=me();return u&&u.role==="super_admin";}
@@ -507,7 +511,7 @@ function logout(silent){
 }
 
 /* ================= State & điều hướng ================= */
-const state={user:null,myEmp:null,units:[],unitsAll:[],campaigns:[],posts:[],view:"dashboard",submitPostId:null,manualSubId:null,closeFilter:"all",repRows:[],repDetail:[],repPosts:[],empImpRows:[],empImpHeaders:[],empImpCells:[],personnel:[],perEdit:null,editUnitId:null};
+const state={user:null,myEmp:null,units:[],unitsAll:[],campaigns:[],posts:[],view:"dashboard",submitPostId:null,manualSubId:null,closeFilter:"all",repRows:[],repDetail:[],repPosts:[],empImpRows:[],empImpHeaders:[],empImpCells:[],personnel:[],perEdit:null,editUnitId:null,campEdit:null,postEdit:null};
 const NAV=[
   ["dashboard","🏠","Tổng quan"],["tasks","✅","Nhiệm vụ của tôi"],["campaigns","🎯","Chiến dịch"],
   ["posts","📰","Bài truyền thông"],["monitor","🔎","Giám sát đơn vị"],["attention","🔴","Cần quan tâm"],
@@ -844,11 +848,29 @@ async function loadCampaigns(){
     const d=await api("/api/campaigns");
     state.campaigns=d.campaigns||[];
     $("campList").innerHTML=state.campaigns.map(function(c){
-      return '<div class="list-item"><div class="ic">🎯</div><div class="mid"><div class="t">'+esc(c.name)+'</div><div class="s">'+esc(c.description||"")+' · '+fmtDate(c.start_date)+' – '+fmtDate(c.end_date)+' · '+c.post_count+' bài · '+(c.status==="active"?"Đang chạy":esc(c.status))+'</div></div></div>';
+      return '<div class="list-item"><div class="ic">🎯</div><div class="mid"><div class="t">'+esc(c.name)+'</div><div class="s">'+esc(c.description||"")+' · '+fmtDate(c.start_date)+' – '+fmtDate(c.end_date)+' · '+c.post_count+' bài · '+(c.status==="active"?"Đang chạy":esc(c.status))+'</div></div><div><button class="btn small" type="button" onclick="editCamp('+c.id+')">✏️ Sửa</button> <button class="btn small danger" type="button" onclick="deleteCamp('+c.id+')">🗑 Xóa</button></div></div>';
     }).join("")||'<p class="muted">Chưa có chiến dịch nào.</p>';
     $("postCamp").innerHTML=state.campaigns.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join("");
     $("postCampFilter").innerHTML='<option value="">Tất cả chiến dịch</option>'+state.campaigns.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join("");
   }catch(e){toast(e.message);}
+}
+function resetCampForm(){
+  state.campEdit=null;$("campName").value="";$("campDesc").value="";$("campStart").value="";$("campEnd").value="";
+  $("campFormTitle").textContent="Tạo chiến dịch mới";$("btnAddCamp").textContent="Tạo chiến dịch";show("btnCancelCamp",false);
+}
+function editCamp(id){
+  const c=(state.campaigns||[]).find(function(x){return x.id===id;});
+  if(!c){toast("Không tìm thấy chiến dịch");return;}
+  state.campEdit=id;$("campName").value=c.name||"";$("campDesc").value=c.description||"";
+  $("campStart").value=String(c.start_date||"").slice(0,10);$("campEnd").value=String(c.end_date||"").slice(0,10);
+  $("campFormTitle").textContent="Sửa chiến dịch";$("btnAddCamp").textContent="Lưu thay đổi";show("btnCancelCamp",true);
+  $("campFormCard").scrollIntoView({behavior:"smooth"});
+}
+async function deleteCamp(id){
+  const c=(state.campaigns||[]).find(function(x){return x.id===id;});
+  if(!confirm("Xóa chiến dịch \""+(c?c.name:id)+"\"? Sẽ bị chặn nếu chiến dịch còn bài viết — xóa hết bài trước."))return;
+  try{await api("/api/campaigns/"+id,{method:"DELETE"});toast("Đã xóa chiến dịch");loadCampaigns();loadPosts();}
+  catch(e){toast(e.message);}
 }
 
 /* ================= Dashboard ================= */
@@ -943,9 +965,9 @@ async function showHistory(submissionId){
     const d=await api("/api/submissions/"+submissionId+"/history");
     const s=d.submission;
     $("histBody").innerHTML='<p><b>Link:</b> <a href="'+esc(s.canonical_url)+'" target="_blank" rel="noopener">'+esc(s.canonical_url)+'</a></p>'
-      +'<p class="muted">Khai báo: '+esc(s.submitted_at||"")+' · Kiểm tra đầu: '+(s.first_check_status||"—")+' · Gần nhất: '+(s.last_check_status||"—")+' · Khi chốt: '+(s.final_check_status||"—")+'</p>'
-      +'<div class="tablewrap"><table><thead><tr><th>Thời gian</th><th>Loại</th><th>Kết quả</th><th>Cách kiểm tra</th><th>Ghi chú</th></tr></thead><tbody>'
-      +d.history.map(function(h){return '<tr><td>'+esc(h.checked_at||"")+'</td><td>'+esc(h.check_type)+'</td><td>'+esc(h.check_status)+'</td><td>'+esc(h.verification_method||"")+'</td><td>'+esc(h.error_message||"")+'</td></tr>';}).join("")
+      +'<p class="muted">Khai báo: '+esc(fmtDateTimeVN(s.submitted_at))+' (giờ Việt Nam) · Kiểm tra đầu: '+(s.first_check_status||"—")+' · Gần nhất: '+(s.last_check_status||"—")+' · Khi chốt: '+(s.final_check_status||"—")+'</p>'
+      +'<div class="tablewrap"><table><thead><tr><th>Thời gian (giờ Việt Nam)</th><th>Loại</th><th>Kết quả</th><th>Cách kiểm tra</th><th>Ghi chú</th></tr></thead><tbody>'
+      +d.history.map(function(h){return '<tr><td>'+esc(fmtDateTimeVN(h.checked_at))+'</td><td>'+esc(h.check_type)+'</td><td>'+esc(h.check_status)+'</td><td>'+esc(h.verification_method||"")+'</td><td>'+esc(h.error_message||"")+'</td></tr>';}).join("")
       +'</tbody></table></div>';
     show("histModal",true);
   }catch(e){toast(e.message);}
@@ -963,9 +985,33 @@ async function loadPosts(){
       return '<div class="list-item"><div class="ic">📰</div><div class="mid"><div class="t">'+esc(p.title)+' <span class="pill blue">'+p.weight+' điểm</span> '+(p.level==="mandatory"?'<span class="pill warn">Bắt buộc</span>':'<span class="pill grey">Không bắt buộc</span>')+'</div>'
         +'<div class="s">'+esc(p.campaign_name||"")+' · Hạn '+fmtDate(p.deadline)+' · '+(p.scope_type==="unit"?"Đơn vị":"Toàn tỉnh")+' · Đã giao '+p.assigned_count+' CBCNV · Đã khai báo '+p.submitted_count+'</div>'
         +'<div class="s"><a href="'+esc(p.post_url)+'" target="_blank" rel="noopener">Link bài gốc</a> '+platformBadge(p.post_url)+'</div></div>'
-        +'<div><button class="btn small" type="button" onclick="reassignPost('+p.id+')">🔁 Giao lại</button></div></div>';
+        +'<div><button class="btn small" type="button" onclick="reassignPost('+p.id+')">🔁 Giao lại</button> <button class="btn small" type="button" onclick="editPost('+p.id+')">✏️ Sửa</button> <button class="btn small danger" type="button" onclick="deletePost('+p.id+')">🗑 Xóa</button></div></div>';
     }).join("")||'<p class="muted">Tháng này chưa có bài viết nào.</p>';
   }catch(e){toast(e.message);}
+}
+function resetPostForm(){
+  state.postEdit=null;$("postTitle").value="";$("postUrl").value="";$("postPub").value="";$("postDeadline").value="";$("postMonth").value="";
+  $("postScope").value="all";show("postScopeUnitWrap",false);$("postLevel").value="mandatory";$("postWeight").value="1";$("postReq").value="any";$("postTags").value="";$("postContent").value="";
+  $("postFormTitle").textContent="Thêm bài viết cần chia sẻ";$("btnAddPost").textContent="Tạo bài & giao nhiệm vụ tự động";show("btnCancelPost",false);
+}
+function editPost(id){
+  const p=(state.posts||[]).find(function(x){return x.id===id;});
+  if(!p){toast("Không tìm thấy bài viết");return;}
+  state.postEdit=id;
+  $("postCamp").value=p.campaign_id;$("postTitle").value=p.title||"";$("postUrl").value=p.post_url||"";
+  $("postPub").value=String(p.published_date||"").slice(0,10);$("postDeadline").value=String(p.deadline||"").slice(0,10);$("postMonth").value=p.month||"";
+  $("postScope").value=p.scope_type==="unit"?"unit":"all";show("postScopeUnitWrap",$("postScope").value==="unit");
+  if(p.scope_type==="unit"&&p.scope_unit_id)$("postScopeUnit").value=p.scope_unit_id;
+  $("postLevel").value=p.level||"mandatory";$("postWeight").value=String(p.weight||1);$("postReq").value=p.share_requirement||"any";
+  $("postTags").value=p.hashtags||"";$("postContent").value=p.content||"";
+  $("postFormTitle").textContent="Sửa bài viết";$("btnAddPost").textContent="Lưu thay đổi";show("btnCancelPost",true);
+  $("postFormCard").scrollIntoView({behavior:"smooth"});
+}
+async function deletePost(id){
+  const p=(state.posts||[]).find(function(x){return x.id===id;});
+  if(!confirm("Xóa bài \""+(p?p.title:id)+"\"? Sẽ bị chặn nếu bài đã có minh chứng được khai báo."))return;
+  try{await api("/api/posts/"+id,{method:"DELETE"});toast("Đã xóa bài viết");loadPosts();}
+  catch(e){toast(e.message);}
 }
 async function reassignPost(postId){
   try{const d=await api("/api/posts/"+postId+"/assign",{method:"POST"});toast("Đã giao nhiệm vụ cho "+d.assigned+" CBCNV");loadPosts();}
@@ -1503,24 +1549,34 @@ function wire(){
     }catch(e){$("submitMsg").textContent=e.message;}
   };
   $("btnAddCamp").onclick=async function(){
+    const body={name:$("campName").value.trim(),description:$("campDesc").value.trim(),start_date:$("campStart").value||null,end_date:$("campEnd").value||null};
     try{
-      await api("/api/campaigns",{method:"POST",body:{name:$("campName").value.trim(),description:$("campDesc").value.trim(),start_date:$("campStart").value||null,end_date:$("campEnd").value||null}});
-      toast("Đã tạo chiến dịch");$("campName").value="";$("campDesc").value="";loadCampaigns();
+      if(state.campEdit){await api("/api/campaigns/"+state.campEdit,{method:"PUT",body:body});toast("Đã lưu thay đổi chiến dịch");}
+      else{await api("/api/campaigns",{method:"POST",body:body});toast("Đã tạo chiến dịch");}
+      resetCampForm();loadCampaigns();
     }catch(e){toast(e.message);}
   };
+  $("btnCancelCamp").onclick=function(){resetCampForm();};
   $("postScope").addEventListener("change",function(){show("postScopeUnitWrap",$("postScope").value==="unit");});
   $("btnAddPost").onclick=async function(){
     try{
-      const d=await api("/api/posts",{method:"POST",body:{
+      const body={
         campaign_id:Number($("postCamp").value),title:$("postTitle").value.trim(),post_url:$("postUrl").value.trim(),
         published_date:$("postPub").value||null,deadline:$("postDeadline").value||null,month:$("postMonth").value||monthVN(),
         scope_type:$("postScope").value,scope_unit_id:$("postScope").value==="unit"?Number($("postScopeUnit").value):null,
         level:$("postLevel").value,weight:Number($("postWeight").value),share_requirement:$("postReq").value,
-        hashtags:$("postTags").value.trim(),content:$("postContent").value.trim()}});
+        hashtags:$("postTags").value.trim(),content:$("postContent").value.trim()};
+      if(state.postEdit){
+        const d=await api("/api/posts/"+state.postEdit,{method:"PUT",body:body});
+        toast("Đã lưu thay đổi bài viết"+(d.assigned?" — giao thêm nhiệm vụ cho "+d.assigned+" CBCNV":""));
+        resetPostForm();loadPosts();return;
+      }
+      const d=await api("/api/posts",{method:"POST",body:body});
       toast("Đã tạo bài — giao nhiệm vụ cho "+d.assigned+" CBCNV");
-      $("postTitle").value="";$("postUrl").value="";loadPosts();
+      resetPostForm();loadPosts();
     }catch(e){toast(e.message);}
   };
+  $("btnCancelPost").onclick=function(){resetPostForm();};
   $("btnLoadUnit").onclick=loadUnitTable;
   $("btnClosePreview").onclick=async function(){
     const month=$("closeMonth").value||monthVN();

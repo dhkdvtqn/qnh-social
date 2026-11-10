@@ -2,7 +2,7 @@
 ### Hệ thống giám sát chia sẻ bài viết truyền thông — VNPT Quảng Ninh
 
 > Trang web: https://dhkdvtqn.github.io/qnh-social/
-> Phiên bản tài liệu: v11 (10/11/2026) — **(1) Sửa lỗi "Failed to fetch" khi chốt tháng và ở nhiều module (Dashboard, Giám sát đơn vị, Cần quan tâm, Báo cáo): nguyên nhân là Cloudflare D1 chỉ cho tối đa 100 tham số bind mỗi câu lệnh — các truy vấn liệt kê toàn bộ CBCNV toàn tỉnh (hơn 100 người) đều gây lỗi máy chủ; trình duyệt chỉ hiện "Failed to fetch" vì lỗi 500 không kèm header CORS. Nay đã chia nhỏ các truy vấn, bọc lưới an toàn để lần sau hiện đúng lỗi, và `/api/health` có thêm trường `version` (bản hiện tại: `v11`) để kiểm tra Worker đang chạy bản nào — lưu ý cần dán lại `worker.js` mới lên Cloudflare 1 lần thì các sửa chữa phía máy chủ mới có hiệu lực. (2) Chia sẻ đa nền tảng: ngoài Facebook, CBCNV được chia sẻ trên Zalo, TikTok, Instagram, YouTube (cả link bài gốc và link minh chứng); các nền tảng ngoài Facebook chưa xác minh tự động được nên luôn ở trạng thái "Chờ xác minh" để admin kiểm tra thủ công khi chốt tháng. (3) Nút "Chốt chính thức" nay bị khóa thật khi còn trường hợp "Chờ xác minh".** Các thay đổi trước: v10 — chấp nhận link Facebook dạng pfbid (VD .../posts/pfbid...): cả link bài gốc khi tạo bài và link minh chứng khi CBCNV khai báo đều dùng được; link pfbid là link đúng chuẩn do Facebook sinh ra khi bấm "Sao chép liên kết", không cần tìm link dạng số. v9 — (1) BỎ ngoại lệ "Ban lãnh đạo" (đổi so với v8): lãnh đạo chỉ xem ĐÚNG đơn vị của mình, không còn ngoại lệ theo tên đơn vị — lãnh đạo đơn vị "Ban lãnh đạo" giờ cũng chỉ xem Ban lãnh đạo; muốn xem toàn tỉnh thì đưa tài khoản về đơn vị gốc VNPT Quảng Ninh; (2) ô chọn Đơn vị ở module Quản lý nhân sự đã có "VNPT Quảng Ninh" để gán user về cấp tỉnh.** Các thay đổi trước: v8 — nút "Đăng xuất" ngay dưới nút "Cài đặt" trong menu; module Giám sát đơn vị thêm lựa chọn "VNPT Quảng Ninh (toàn tỉnh)"; siết phạm vi xem của nhóm "Lãnh đạo": chỉ xem ĐÚNG đơn vị của mình, không gồm đơn vị con; v7 — siết quyền Admin truyền thông: chỉ được XEM ở module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa; v6 — làm lại file mẫu import nhân sự và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
+> Phiên bản tài liệu: v12 (10/11/2026) — **(1) Tên đơn vị ở mục "Tỷ lệ hoàn thành theo đơn vị" trên trang Tổng quan hiển thị đầy đủ 100%, không còn bị cắt (tên dài tự xuống dòng). (2) Thêm nút Sửa/Xóa cho chiến dịch và bài truyền thông đã tạo (cạnh nút "Giao lại"): xóa bài bị chặn nếu bài đã có minh chứng khai báo, xóa chiến dịch bị chặn nếu còn bài viết; sửa bài đổi phạm vi thì hệ thống giao thêm nhiệm vụ cho CBCNV mới thuộc phạm vi, giữ nguyên nhiệm vụ và link đã khai báo. (3) Log "Lịch sử" ở mục Chốt tháng hiển thị ngày giờ theo giờ Việt Nam (UTC+7).** Các thay đổi trước: v11 — chấp nhận link Facebook dạng pfbid (VD .../posts/pfbid...): cả link bài gốc khi tạo bài và link minh chứng khi CBCNV khai báo đều dùng được; link pfbid là link đúng chuẩn do Facebook sinh ra khi bấm "Sao chép liên kết", không cần tìm link dạng số. v9 — (1) BỎ ngoại lệ "Ban lãnh đạo" (đổi so với v8): lãnh đạo chỉ xem ĐÚNG đơn vị của mình, không còn ngoại lệ theo tên đơn vị — lãnh đạo đơn vị "Ban lãnh đạo" giờ cũng chỉ xem Ban lãnh đạo; muốn xem toàn tỉnh thì đưa tài khoản về đơn vị gốc VNPT Quảng Ninh; (2) ô chọn Đơn vị ở module Quản lý nhân sự đã có "VNPT Quảng Ninh" để gán user về cấp tỉnh.** Các thay đổi trước: v8 — nút "Đăng xuất" ngay dưới nút "Cài đặt" trong menu; module Giám sát đơn vị thêm lựa chọn "VNPT Quảng Ninh (toàn tỉnh)"; siết phạm vi xem của nhóm "Lãnh đạo": chỉ xem ĐÚNG đơn vị của mình, không gồm đơn vị con; v7 — siết quyền Admin truyền thông: chỉ được XEM ở module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa; v6 — làm lại file mẫu import nhân sự và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
 > Mỗi lần hệ thống thay đổi, tài liệu này được cập nhật lại. Bản PDF đi kèm được tạo từ chính file này.
 
 ---
@@ -103,11 +103,13 @@ Lỗi này nghĩa là **tài khoản đăng nhập của bạn chưa được g�
 
 ## 5. Dành cho Admin truyền thông / Sub Admin
 
-### 5.1. Tạo chiến dịch
+### 5.1. Tạo / sửa / xóa chiến dịch
 
 Vào **Chiến dịch → Tạo chiến dịch**, nhập: tên chiến dịch, mô tả. Một chiến dịch có thể có nhiều bài viết.
 
-### 5.2. Tạo bài truyền thông và giao nhiệm vụ
+Mỗi chiến dịch trong danh sách có nút **Sửa** (mở lại form đã điền sẵn dữ liệu, bấm "Lưu thay đổi") và **Xóa**. **Xóa chiến dịch bị chặn nếu chiến dịch còn bài viết** — xóa hết bài của chiến dịch trước rồi mới xóa được chiến dịch.
+
+### 5.2. Tạo / sửa / xóa bài truyền thông và giao nhiệm vụ
 
 Vào **Bài truyền thông → Thêm bài**, nhập:
 
@@ -118,6 +120,11 @@ Vào **Bài truyền thông → Thêm bài**, nhập:
 - **Yêu cầu chia sẻ** (công khai / trang cá nhân / hội nhóm) và hashtag.
 
 Bấm **Lưu**: hệ thống **tự động giao nhiệm vụ** cho toàn bộ CBCNV đang làm việc thuộc phạm vi, đồng thời gửi thông báo bài mới cho họ.
+
+Mỗi bài trong danh sách có nút **Sửa** (mở lại form đã điền sẵn dữ liệu, bấm "Lưu thay đổi"; có nút "Hủy sửa" để quay lại tạo bài mới) và **Xóa** (cạnh nút "Giao lại"). Lưu ý khi sửa/xóa bài:
+- **Xóa bài bị chặn nếu bài đã có minh chứng được khai báo** (để không mất dữ liệu tính điểm) — muốn xóa bài thì xóa minh chứng của bài đó trước.
+- **Sửa bài đổi Đối tượng (phạm vi):** hệ thống tự giao thêm nhiệm vụ cho CBCNV mới thuộc phạm vi, giữ nguyên nhiệm vụ và link minh chứng đã khai báo của những người cũ.
+- **Sửa link bài gốc:** hệ thống kiểm tra lại định dạng link; không chuyển bài sang tháng đã khóa.
 
 ### 5.3. Kiểm tra minh chứng và chốt tháng
 
@@ -133,9 +140,11 @@ Bấm **Lưu**: hệ thống **tự động giao nhiệm vụ** cho toàn bộ C
 
 > Chỉ link ở trạng thái **Hợp lệ khi chốt tháng** mới được tính vào tỷ lệ hoàn thành và điểm số.
 
+Nút **Lịch sử** ở bảng chốt tháng mở log kiểm tra của từng link — ngày giờ trong log hiển thị theo **giờ Việt Nam (UTC+7)** (dữ liệu gốc vẫn lưu theo giờ UTC).
+
 ### 5.4. Đọc Dashboard và báo cáo
 
-- **Tổng quan:** 6 chỉ số chính — tỷ lệ CBCNV tham gia, tỷ lệ hoàn thành nhiệm vụ, số CBCNV đạt 100%, số dưới 70%, số không thực hiện, xếp hạng đơn vị.
+- **Tổng quan:** 6 chỉ số chính — tỷ lệ CBCNV tham gia, tỷ lệ hoàn thành nhiệm vụ, số CBCNV đạt 100%, số dưới 70%, số không thực hiện, xếp hạng đơn vị. Tên đơn vị ở mục "Tỷ lệ hoàn thành theo đơn vị" hiển thị đầy đủ (tên dài tự xuống dòng, không bị cắt).
 - **Đường chuẩn 70%:** đơn vị từ 90% trở lên màu xanh, 70–<90% màu vàng, dưới 70% màu đỏ.
 - **Nhóm đánh giá:** A = 100%, B = từ 70% đến dưới 100%, C = trên 0% đến dưới 70%, D = 0%.
 - **Tỷ lệ duy trì chia sẻ:** số link còn tồn tại khi chốt tháng / số link từng xác minh hợp lệ — đơn vị chia sẻ nhiều nhưng xóa bài sớm sẽ lộ ở chỉ số này.

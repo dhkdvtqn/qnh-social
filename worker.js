@@ -38,7 +38,7 @@ const RESET_TTL_SECONDS = 60 * 60;      // 1 giờ
 const PBKDF2_ITER = 100000;
 const STANDARD_RATE = 70;               // đường chuẩn 70%
 const GREEN_THRESHOLD = 90;             // xanh >= 90%
-const WORKER_VERSION = "v11";           // hiện ở /api/health để biết Worker đang chạy bản nào
+const WORKER_VERSION = "v12";           // hiện ở /api/health để biết Worker đang chạy bản nào
 
 // ---------- Tiện ích mã hóa (giữ đúng mẫu MyMoney) ---------------------------
 function b64urlEncode(bytes) {
@@ -1202,25 +1202,53 @@ async function fetchHandler(request, env) {
       if (!target) return err(env, "Không tìm thấy bài viết", 404);
       if (await monthLocked(env, target.month)) return err(env, "Tháng " + target.month + " đã khóa", 403);
       if (request.method === "DELETE") {
+        // Chặn xóa (đợt 12): bài đã có minh chứng được khai báo thì không được
+        // xóa, để không mất dữ liệu tính điểm. Muốn xóa phải xóa minh chứng trước
+        // (CBCNV xóa ở "Nhiệm vụ của tôi" hoặc admin xóa ở Chốt tháng).
+        const subCount = await env.DB.prepare("SELECT COUNT(*) AS c FROM share_submissions WHERE post_id = ?").bind(target.id).first();
+        if ((subCount?.c || 0) > 0) return err(env, "Bài đã có " + subCount.c + " minh chứng được khai báo — không thể xóa (xóa minh chứng trước)", 409);
+        // D1 tắt FK nên xóa tay các dòng con (nhiệm vụ, log mở bài, chỉ số).
+        await env.DB.batch([
+          env.DB.prepare("DELETE FROM assignments WHERE post_id = ?").bind(target.id),
+          env.DB.prepare("DELETE FROM open_logs WHERE post_id = ?").bind(target.id),
+          env.DB.prepare("DELETE FROM post_metrics WHERE post_id = ?").bind(target.id),
+        ]);
         await env.DB.prepare("DELETE FROM posts WHERE id = ?").bind(target.id).run();
         await audit(env, uid, "delete_post", "posts:" + target.id, "Xóa bài: " + target.title, target, null);
         return json(env, { ok: true });
       }
       const b = await readBody(request);
+      // Sửa bài (đợt 12): kiểm tra lại link gốc nếu đổi; chặn nếu đổi sang
+      // tháng đã khóa; đổi phạm vi thì giao thêm nhiệm vụ cho CBCNV mới.
+      const newTitle = String(b.title ?? target.title).trim() || target.title;
+      const newUrl = String(b.post_url ?? target.post_url).trim();
+      if (newUrl !== String(target.post_url || "").trim()) {
+        const canon = canonicalizeShareUrl(newUrl);
+        if (!canon.ok) return err(env, "Link bài gốc không hợp lệ: " + (canon.message || ""), 422);
+      }
+      const newMonth = validMonth(b.month) ? b.month : target.month;
+      if (newMonth !== target.month && await monthLocked(env, newMonth)) return err(env, "Tháng " + newMonth + " đã khóa — không chuyển bài sang tháng này", 403);
+      const newScopeType = b.scope_type === "unit" ? "unit" : (b.scope_type === "all" ? "all" : target.scope_type);
+      const newScopeUnitId = newScopeType === "unit" ? (b.scope_unit_id ?? target.scope_unit_id) : null;
+      const scopeChanged = newScopeType !== target.scope_type || (newScopeUnitId || null) !== (target.scope_unit_id || null);
       await env.DB.prepare(
         `UPDATE posts SET title=?, content=?, post_url=?, published_date=?, deadline=?, month=?,
           scope_type=?, scope_unit_id=?, level=?, weight=?, share_requirement=?, hashtags=?, status=?, updated_at=?
          WHERE id=?`
-      ).bind(String(b.title ?? target.title).trim(), String(b.content ?? target.content ?? ""),
-        String(b.post_url ?? target.post_url).trim(), b.published_date ?? target.published_date,
-        b.deadline ?? target.deadline, validMonth(b.month) ? b.month : target.month,
-        b.scope_type === "unit" ? "unit" : (b.scope_type === "all" ? "all" : target.scope_type),
-        b.scope_unit_id ?? target.scope_unit_id,
-        b.level === "optional" ? "optional" : "mandatory",
+      ).bind(newTitle, String(b.content ?? target.content ?? ""),
+        newUrl, b.published_date ?? target.published_date,
+        b.deadline ?? target.deadline, newMonth,
+        newScopeType, newScopeUnitId,
+        b.level === "optional" ? "optional" : (b.level === "mandatory" ? "mandatory" : target.level),
         [1, 2, 3].includes(Number(b.weight)) ? Number(b.weight) : target.weight,
         ["public", "profile", "group", "any"].includes(b.share_requirement) ? b.share_requirement : target.share_requirement,
         String(b.hashtags ?? target.hashtags ?? ""), b.status || target.status, nowIso(), target.id).run();
-      return json(env, { ok: true });
+      let assigned = 0;
+      if (scopeChanged) {
+        const updated = await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(target.id).first();
+        assigned = await autoAssign(env, updated); // INSERT OR IGNORE: giữ nhiệm vụ/link cũ, chỉ giao thêm người mới
+      }
+      return json(env, { ok: true, assigned });
     }
     // Giao lại nhiệm vụ cho bài (sau khi thêm CBCNV mới / đổi phạm vi)
     const assignMatch = path.match(/^\/api\/posts\/(\d+)\/assign$/);
