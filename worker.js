@@ -38,6 +38,7 @@ const RESET_TTL_SECONDS = 60 * 60;      // 1 giờ
 const PBKDF2_ITER = 100000;
 const STANDARD_RATE = 70;               // đường chuẩn 70%
 const GREEN_THRESHOLD = 90;             // xanh >= 90%
+const WORKER_VERSION = "v11";           // hiện ở /api/health để biết Worker đang chạy bản nào
 
 // ---------- Tiện ích mã hóa (giữ đúng mẫu MyMoney) ---------------------------
 function b64urlEncode(bytes) {
@@ -131,6 +132,25 @@ function gradeOf(rate) {
   return "D";
 }
 function round1(n) { return Math.round(n * 10) / 10; }
+
+// D1 chỉ cho tối đa 100 tham số bind mỗi câu lệnh (D1_ERROR: too many SQL
+// variables). Toàn tỉnh có hàng trăm CBCNV nên mọi truy vấn IN (...) với
+// danh sách id dài phải chia nhỏ — đây là nguyên nhân lỗi 500 "Failed to
+// fetch" ở Dashboard/Chốt tháng/Báo cáo khi dữ liệu thật vượt 100 người
+// (phát hiện 10/11/2026).
+const D1_IN_CHUNK = 90;
+// Chạy 1 SELECT có mệnh đề IN (...) với danh sách id dài: chia thành từng
+// nhóm tối đa chunkSize id rồi gộp kết quả. buildStmt(chunk) trả về
+// prepared statement đã bind cho đúng nhóm đó.
+async function selectInChunks(buildStmt, ids, chunkSize = D1_IN_CHUNK) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    const rows = (await buildStmt(chunk).all()).results || [];
+    out.push(...rows);
+  }
+  return out;
+}
 
 // ---------- Định danh đăng nhập (email hoặc SĐT VN) ---------------------------
 function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || "")); }
@@ -287,6 +307,102 @@ async function verifyFacebookPost(canonical, fbPostId) {
   } catch (e) {
     return { status: "UNKNOWN", http_status: null, verification_method: "HTTP_FETCH", error_code: "FETCH_ERROR", error_message: "Lỗi mạng khi truy cập link: " + String(e && e.message || e) };
   }
+}
+
+// ---------- Chia sẻ đa nền tảng (đợt 11, 10/11/2026) ----------------------
+// Không chỉ Facebook: CBCNV được chia sẻ trên Zalo, TikTok, Instagram,
+// YouTube. Mỗi nền tảng có dạng URL bài riêng; chỉ Facebook có xác minh
+// tự động (oEmbed) — các nền tảng khác luôn UNKNOWN ("Chờ xác minh") để
+// admin kiểm tra thủ công khi chốt tháng (không tự cho đạt/trượt).
+// Không đổi schema: nền tảng suy ra từ URL khi hiển thị/kiểm tra.
+const PLATFORM_LABELS = { facebook: "Facebook", zalo: "Zalo", tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube" };
+const PLATFORM_HOSTS = {
+  facebook: new Set(["facebook.com", "www.facebook.com", "m.facebook.com", "fb.com", "web.facebook.com"]),
+  zalo: new Set(["zalo.me", "www.zalo.me", "zalo.vn", "www.zalo.vn", "oa.zalo.me"]),
+  tiktok: new Set(["tiktok.com", "www.tiktok.com", "m.tiktok.com", "vt.tiktok.com"]),
+  instagram: new Set(["instagram.com", "www.instagram.com", "m.instagram.com"]),
+  youtube: new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"]),
+};
+function detectPlatform(hostOrUrl) {
+  let host = String(hostOrUrl || "").trim().toLowerCase();
+  if (host.includes("://")) { try { host = new URL(host).hostname.toLowerCase(); } catch { return null; } }
+  for (const [p, hosts] of Object.entries(PLATFORM_HOSTS)) if (hosts.has(host)) return p;
+  return null;
+}
+// Chuẩn hóa/kiểm tra link bài chia sẻ trên mọi nền tảng được chấp nhận.
+// Trả { ok, canonical, platform, fb_post_id, fb_user_id, error, message }.
+// fb_post_id: mã định danh bài trên nền tảng đó (số, pfbid, mã video...).
+function canonicalizeShareUrl(raw) {
+  let u;
+  try {
+    let s = String(raw || "").trim();
+    if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+    u = new URL(s);
+  } catch { return { ok: false, error: "INVALID_DOMAIN", message: "URL không hợp lệ" }; }
+  const host = u.hostname.toLowerCase();
+  if (SHORT_DOMAINS.has(host)) {
+    return { ok: false, error: "SHORT_LINK", message: "Link rút gọn không xác minh được — hãy dán link đầy đủ của bài chia sẻ" };
+  }
+  const platform = detectPlatform(host);
+  if (!platform) {
+    return { ok: false, error: "INVALID_DOMAIN", message: "Chỉ chấp nhận link bài viết trên Facebook, Zalo, TikTok, Instagram hoặc YouTube" };
+  }
+  if (platform === "facebook") {
+    const r = canonicalizeFacebookUrl(raw);
+    return { ...r, platform: "facebook" };
+  }
+  return canonicalizeOtherPlatform(u, platform);
+}
+function canonicalizeOtherPlatform(u, platform) {
+  const path = u.pathname.replace(/\/+$/, "") || "/";
+  const noCanon = (message) => ({ ok: false, error: "NOT_A_POST_URL", canonical: null, platform, fb_post_id: null, fb_user_id: null, message });
+  if (platform === "tiktok") {
+    // Link rút gọn chính chủ của TikTok: vt.tiktok.com/<mã>
+    if (u.hostname.toLowerCase() === "vt.tiktok.com") {
+      if (path.length < 2) return noCanon("Link TikTok không hợp lệ — hãy dán link video đã chia sẻ");
+      return { ok: true, canonical: "https://vt.tiktok.com" + path, platform, fb_post_id: path.slice(1), fb_user_id: null };
+    }
+    const m = path.match(/^\/@[^/]+\/video\/(\d+)/);
+    if (!m) return noCanon("Link TikTok không trỏ tới một video cụ thể — hãy dán link video dạng tiktok.com/@tên/video/123...");
+    return { ok: true, canonical: "https://www.tiktok.com" + path, platform, fb_post_id: m[1], fb_user_id: null };
+  }
+  if (platform === "instagram") {
+    const m = path.match(/^\/(?:p|reel|reels)\/([A-Za-z0-9_-]+)/);
+    if (!m) return noCanon("Link Instagram không trỏ tới một bài cụ thể — hãy dán link dạng instagram.com/p/... hoặc instagram.com/reel/...");
+    const kind = path.startsWith("/reel") ? "reel" : "p";
+    return { ok: true, canonical: `https://www.instagram.com/${kind}/${m[1]}/`, platform, fb_post_id: m[1], fb_user_id: null };
+  }
+  if (platform === "youtube") {
+    let vid = null;
+    if (u.hostname.toLowerCase() === "youtu.be") {
+      const m = path.match(/^\/([A-Za-z0-9_-]{6,})/);
+      if (m) vid = m[1];
+    } else {
+      const v = u.searchParams.get("v");
+      if (v && /^[A-Za-z0-9_-]{6,}$/.test(v)) vid = v;
+      else { const m = path.match(/^\/(?:shorts|live|embed)\/([A-Za-z0-9_-]{6,})/); if (m) vid = m[1]; }
+    }
+    if (!vid) return noCanon("Link YouTube không trỏ tới một video cụ thể — hãy dán link dạng youtube.com/watch?v=... hoặc youtu.be/...");
+    return { ok: true, canonical: "https://www.youtube.com/watch?v=" + vid, platform, fb_post_id: vid, fb_user_id: null };
+  }
+  // Zalo: chưa có dạng URL bài công khai rõ ràng như các nền tảng khác —
+  // chấp nhận link có path cụ thể (không phải trang chủ), dựa vào xác minh
+  // thủ công của admin khi chốt tháng.
+  if (platform === "zalo") {
+    if (!path || path === "/") return noCanon("Link Zalo không hợp lệ — hãy dán link bài đã chia sẻ (không phải link trang chủ zalo.me)");
+    return { ok: true, canonical: "https://" + u.hostname.toLowerCase() + path, platform, fb_post_id: path.slice(1), fb_user_id: null };
+  }
+  return noCanon("Nền tảng chưa được hỗ trợ");
+}
+// Xác minh link bài chia sẻ: Facebook dùng oEmbed như cũ; các nền tảng
+// khác chưa có cách xác minh tự động -> luôn UNKNOWN để admin kiểm mẫu.
+async function verifyShareUrl(canonical, platform, fbPostId) {
+  if (platform && platform !== "facebook") {
+    const label = PLATFORM_LABELS[platform] || platform;
+    return { status: "UNKNOWN", http_status: null, verification_method: "MANUAL_ONLY", error_code: "NO_AUTO_VERIFY",
+      error_message: `Nền tảng ${label} chưa hỗ trợ xác minh tự động — admin kiểm tra thủ công khi chốt tháng` };
+  }
+  return verifyFacebookPost(canonical, fbPostId);
 }
 
 // ---------- Auth / phân quyền -------------------------------------------------
@@ -502,6 +618,28 @@ async function ensureSchema(env) {
       locked_by INTEGER, locked_at TEXT, reason TEXT DEFAULT '',
       updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`).run();
   } catch { /* bỏ qua */ }
+  // Bảng snapshot chốt tháng + lịch sử kiểm tra link: schema.sql đã có từ
+  // v1 nhưng ensureSchema trước đây không tự tạo — bổ sung lũy tiến để D1
+  // tạo từ schema cũ vẫn đủ bảng (IF NOT EXISTS, không phá dữ liệu cũ).
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS monthly_final_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, month TEXT NOT NULL,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
+      assigned_count INTEGER NOT NULL DEFAULT 0, valid_count INTEGER NOT NULL DEFAULT 0,
+      invalid_count INTEGER NOT NULL DEFAULT 0, submitted_count INTEGER NOT NULL DEFAULT 0,
+      assigned_points INTEGER NOT NULL DEFAULT 0, valid_points INTEGER NOT NULL DEFAULT 0,
+      rate REAL NOT NULL DEFAULT 0, grade TEXT NOT NULL DEFAULT 'D' CHECK (grade IN ('A','B','C','D')),
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      UNIQUE(month, employee_id))`).run();
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS link_check_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      submission_id INTEGER NOT NULL REFERENCES share_submissions(id) ON DELETE CASCADE,
+      check_type TEXT NOT NULL CHECK (check_type IN ('SUBMISSION','PERIODIC','FINAL','MANUAL')),
+      check_status TEXT NOT NULL,
+      checked_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      http_status INTEGER, verification_method TEXT, error_code TEXT, error_message TEXT)`).run();
+  } catch { /* bỏ qua */ }
 }
 
 // ---------- Tính điểm ----------------------------------------------------------
@@ -541,9 +679,8 @@ function scoreEmployees(assignments, submissionsByKey, postsById) {
 }
 
 // ---------- Router ------------------------------------------------------------
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
+async function fetchHandler(request, env) {
+  const url = new URL(request.url);
     const path = url.pathname;
     if (request.method === "OPTIONS") return new Response(null, { headers: cors(env) });
     await ensureSchema(env);
@@ -552,7 +689,7 @@ export default {
     if (path === "/api/health") {
       try {
         const r = await env.DB.prepare("SELECT 1 AS ok").first();
-        return json(env, { success: true, database: "ok", ok: r?.ok ?? 0 });
+        return json(env, { success: true, database: "ok", ok: r?.ok ?? 0, version: WORKER_VERSION });
       } catch (e) { return json(env, { success: false, database: "error", error: String(e) }, 500); }
     }
 
@@ -781,16 +918,27 @@ export default {
       const status = url.searchParams.get("status") || "";
       const q = (url.searchParams.get("q") || "").trim();
       const visible = await visibleEmployeeIds(env, me);
-      let sql = "SELECT e.*, u.name AS unit_name, us.id AS user_id, us.email AS user_email, us.role AS user_role, us.status AS user_status FROM employees e LEFT JOIN units u ON u.id = e.unit_id LEFT JOIN users us ON us.employee_id = e.id WHERE 1=1";
+      let sql = "SELECT e.*, u.name AS unit_name, u.sort_order AS unit_sort_order, us.id AS user_id, us.email AS user_email, us.role AS user_role, us.status AS user_status FROM employees e LEFT JOIN units u ON u.id = e.unit_id LEFT JOIN users us ON us.employee_id = e.id WHERE 1=1";
       const args = [];
-      if (visible !== null) {
-        if (!visible.length) return json(env, { ok: true, employees: [] });
-        sql += ` AND e.id IN (${visible.map(() => "?").join(",")})`; args.push(...visible);
-      }
+      if (visible !== null && !visible.length) return json(env, { ok: true, employees: [] });
       if (unitId) { sql += " AND e.unit_id = ?"; args.push(unitId); }
       if (status) { sql += " AND e.status = ?"; args.push(status); }
-      sql += " ORDER BY u.sort_order, e.full_name LIMIT 2000";
-      let rows = (await env.DB.prepare(sql).bind(...args).all()).results || [];
+      let rows;
+      if (visible !== null && visible.length > D1_IN_CHUNK) {
+        // Phạm vi xem lớn (VD lãnh đạo đơn vị >90 người): chia nhỏ mệnh đề
+        // IN để không vượt 100 tham số bind của D1, rồi gộp + sắp xếp lại.
+        rows = [];
+        for (let i = 0; i < visible.length; i += D1_IN_CHUNK) {
+          const chunk = visible.slice(i, i + D1_IN_CHUNK);
+          const part = (await env.DB.prepare(sql + ` AND e.id IN (${chunk.map(() => "?").join(",")}) ORDER BY u.sort_order, e.full_name LIMIT 2000`).bind(...args, ...chunk).all()).results || [];
+          rows.push(...part);
+        }
+        rows.sort((a, b) => (a.unit_sort_order ?? 0) - (b.unit_sort_order ?? 0) || String(a.full_name || "").localeCompare(String(b.full_name || "")));
+      } else {
+        if (visible !== null) { sql += ` AND e.id IN (${visible.map(() => "?").join(",")})`; args.push(...visible); }
+        sql += " ORDER BY u.sort_order, e.full_name LIMIT 2000";
+        rows = (await env.DB.prepare(sql).bind(...args).all()).results || [];
+      }
       // Tìm kiếm không dấu (mã NV / họ tên / user đăng nhập / email / SĐT):
       // lọc bằng JS vì SQLite LIKE không bỏ dấu được.
       if (q) {
@@ -986,7 +1134,8 @@ export default {
       const stmts = emps.map((e) =>
         env.DB.prepare("INSERT OR IGNORE INTO assignments (post_id, employee_id) VALUES (?, ?)")
           .bind(post.id, e.id));
-      await env.DB.batch(stmts);
+      // Chia nhỏ batch (D1 giới hạn số câu/lần gọi) — giống thông báo bên dưới.
+      for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100));
       // Thông báo bài mới (trong web, giai đoạn 1)
       const nStmts = emps.map((e) =>
         env.DB.prepare("INSERT INTO notifications (employee_id, title, body, type, month) VALUES (?, ?, ?, 'new_post', ?)")
@@ -1019,7 +1168,7 @@ export default {
       if (!b.campaign_id || !b.title || !b.post_url) return err(env, "Thiếu chiến dịch / tiêu đề / link bài gốc", 422);
       const month = validMonth(b.month) ? b.month : monthOf(b.published_date || b.deadline || nowIso().slice(0, 10));
       if (await monthLocked(env, month)) return err(env, "Tháng " + month + " đã khóa — không tạo thêm bài", 403);
-      const canon = canonicalizeFacebookUrl(b.post_url);
+      const canon = canonicalizeShareUrl(b.post_url);
       if (!canon.ok) return err(env, "Link bài gốc không hợp lệ: " + (canon.message || ""), 422);
       const ins = await env.DB.prepare(
         `INSERT INTO posts (campaign_id, title, content, post_url, published_date, deadline, month,
@@ -1152,12 +1301,12 @@ export default {
         .bind(post.id, emp.id).first();
       if (!a) return err(env, "Bài này không được giao cho anh/chị", 403);
       if (await monthLocked(env, post.month)) return err(env, "Tháng " + post.month + " đã khóa — không sửa được minh chứng", 403);
-      const canon = canonicalizeFacebookUrl(b.url);
+      const canon = canonicalizeShareUrl(b.url);
       if (!canon.ok) return err(env, canon.message || "Link không hợp lệ", 422);
       // Từ chối link bài gốc của chiến dịch (đề cương 2 mục 3).
-      const originCanon = canonicalizeFacebookUrl(post.post_url);
+      const originCanon = canonicalizeShareUrl(post.post_url);
       if (originCanon.ok && originCanon.canonical === canon.canonical) {
-        return err(env, "Đây là link bài gốc trên Fanpage — hãy dán link bài anh/chị đã chia sẻ trên trang cá nhân/hội nhóm", 422);
+        return err(env, "Đây là link bài gốc — hãy dán link bài anh/chị đã chia sẻ (không phải link bài gốc của chiến dịch)", 422);
       }
       // Kiểm tra trùng trên canonical_url (đề cương 2 mục 5).
       const dup = await env.DB.prepare(
@@ -1176,7 +1325,7 @@ export default {
       }
       // Verifier (lớp 1). NOT_FOUND / INVALID -> từ chối ngay.
       // UNKNOWN -> vẫn lưu, trạng thái "Chờ xác minh", KHÔNG tính đạt.
-      const v = await verifyFacebookPost(canon.canonical, canon.fb_post_id);
+      const v = await verifyShareUrl(canon.canonical, canon.platform, canon.fb_post_id);
       if (v.status === "NOT_FOUND") return err(env, "Link không tồn tại hoặc bài đã bị xóa — kiểm tra lại link bài chia sẻ", 422);
       if (v.status === "INVALID") return err(env, v.error_message || "Link không hợp lệ", 422);
       const now = nowIso();
@@ -1249,7 +1398,7 @@ export default {
       if (!isAdmin(me)) return err(env, "Cần quyền admin", 403);
       const s = await env.DB.prepare("SELECT * FROM share_submissions WHERE id = ?").bind(recheckMatch[1]).first();
       if (!s) return err(env, "Không tìm thấy minh chứng", 404);
-      const v = await verifyFacebookPost(s.canonical_url, s.fb_post_id);
+      const v = await verifyShareUrl(s.canonical_url, detectPlatform(s.canonical_url), s.fb_post_id);
       const now = nowIso();
       await env.DB.batch([
         env.DB.prepare("UPDATE share_submissions SET last_check_status=?, last_checked_at=?, current_status=?, http_status=?, verification_method=?, error_message=?, updated_at=? WHERE id=?")
@@ -1329,9 +1478,9 @@ export default {
       }
       const useScores = finalScores || scores;
       const empIds = [...useScores.keys()];
-      const emps = empIds.length ? (await env.DB.prepare(
-        `SELECT e.*, u.name AS unit_name FROM employees e LEFT JOIN units u ON u.id = e.unit_id WHERE e.id IN (${empIds.map(() => "?").join(",")})`
-      ).bind(...empIds).all()).results || [] : [];
+      const emps = empIds.length ? await selectInChunks((c) => env.DB.prepare(
+        `SELECT e.*, u.name AS unit_name FROM employees e LEFT JOIN units u ON u.id = e.unit_id WHERE e.id IN (${c.map(() => "?").join(",")})`
+      ).bind(...c), empIds) : [];
       const empById = new Map(emps.map((e) => [e.id, e]));
       const units = (await env.DB.prepare("SELECT * FROM units WHERE is_root = 0 ORDER BY sort_order").all()).results || [];
       // KPI
@@ -1438,12 +1587,15 @@ export default {
       const empIds = emps.map((e) => e.id);
       let assignments = [], submissions = [];
       if (postIds.length && empIds.length) {
-        assignments = (await env.DB.prepare(
-          `SELECT * FROM assignments WHERE post_id IN (${postIds.map(() => "?").join(",")}) AND employee_id IN (${empIds.map(() => "?").join(",")})`
-        ).bind(...postIds, ...empIds).all()).results || [];
-        submissions = (await env.DB.prepare(
-          `SELECT * FROM share_submissions WHERE post_id IN (${postIds.map(() => "?").join(",")}) AND employee_id IN (${empIds.map(() => "?").join(",")})`
-        ).bind(...postIds, ...empIds).all()).results || [];
+        // Chia nhỏ danh sách nhân viên (D1 tối đa 100 tham số bind/câu;
+        // chừa chỗ cho các post_id trong cùng câu lệnh).
+        const chunkSize = Math.max(10, D1_IN_CHUNK - postIds.length);
+        assignments = await selectInChunks((c) => env.DB.prepare(
+          `SELECT * FROM assignments WHERE post_id IN (${postIds.map(() => "?").join(",")}) AND employee_id IN (${c.map(() => "?").join(",")})`
+        ).bind(...postIds, ...c), empIds, chunkSize);
+        submissions = await selectInChunks((c) => env.DB.prepare(
+          `SELECT * FROM share_submissions WHERE post_id IN (${postIds.map(() => "?").join(",")}) AND employee_id IN (${c.map(() => "?").join(",")})`
+        ).bind(...postIds, ...c), empIds, chunkSize);
       }
       const subByKey = new Map(submissions.map((s) => [s.post_id + ":" + s.employee_id, s]));
       const postsById = new Map(posts.map((p) => [p.id, p]));
@@ -1482,9 +1634,9 @@ export default {
       const subByKey = new Map(submissions.map((s) => [s.post_id + ":" + s.employee_id, s]));
       const scores = scoreEmployees(assignments, subByKey, postsById);
       const empIds = [...scores.keys()];
-      const emps = empIds.length ? (await env.DB.prepare(
-        `SELECT e.*, u.name AS unit_name FROM employees e LEFT JOIN units u ON u.id = e.unit_id WHERE e.id IN (${empIds.map(() => "?").join(",")})`
-      ).bind(...empIds).all()).results || [] : [];
+      const emps = empIds.length ? await selectInChunks((c) => env.DB.prepare(
+        `SELECT e.*, u.name AS unit_name FROM employees e LEFT JOIN units u ON u.id = e.unit_id WHERE e.id IN (${c.map(() => "?").join(",")})`
+      ).bind(...c), empIds) : [];
       const empById = new Map(emps.map((e) => [e.id, e]));
       const bucket = (rate) => rate === 0 ? 0 : rate < 30 ? 1 : rate < 70 ? 2 : rate < 100 ? 3 : 4;
       const employees = [...scores.entries()].map(([eid, s]) => ({ employee: empById.get(eid), ...s, bucket: bucket(s.rate) }))
@@ -1536,9 +1688,9 @@ export default {
       if (locked) {
         const snap = (await env.DB.prepare("SELECT * FROM monthly_final_results WHERE month = ?").bind(month).all()).results || [];
         const empIds = snap.map((r) => r.employee_id);
-        const emps = empIds.length ? (await env.DB.prepare(
-          `SELECT e.*, u.name AS unit_name FROM employees e LEFT JOIN units u ON u.id = e.unit_id WHERE e.id IN (${empIds.map(() => "?").join(",")})`
-        ).bind(...empIds).all()).results || [] : [];
+        const emps = empIds.length ? await selectInChunks((c) => env.DB.prepare(
+          `SELECT e.*, u.name AS unit_name FROM employees e LEFT JOIN units u ON u.id = e.unit_id WHERE e.id IN (${c.map(() => "?").join(",")})`
+        ).bind(...c), empIds) : [];
         const empById = new Map(emps.map((e) => [e.id, e]));
         rows = snap.map((r) => ({ employee_id: r.employee_id, code: empById.get(r.employee_id)?.code || "",
           full_name: empById.get(r.employee_id)?.full_name || "", unit_id: r.unit_id,
@@ -1546,9 +1698,9 @@ export default {
       } else {
         const scores = scoreEmployees(assignments, subByKey, postsById);
         const empIds = [...scores.keys()];
-        const emps = empIds.length ? (await env.DB.prepare(
-          `SELECT e.*, u.name AS unit_name FROM employees e LEFT JOIN units u ON u.id = e.unit_id WHERE e.id IN (${empIds.map(() => "?").join(",")})`
-        ).bind(...empIds).all()).results || [] : [];
+        const emps = empIds.length ? await selectInChunks((c) => env.DB.prepare(
+          `SELECT e.*, u.name AS unit_name FROM employees e LEFT JOIN units u ON u.id = e.unit_id WHERE e.id IN (${c.map(() => "?").join(",")})`
+        ).bind(...c), empIds) : [];
         const empById = new Map(emps.map((e) => [e.id, e]));
         rows = [...scores.entries()].map(([eid, s]) => ({ employee_id: eid,
           code: empById.get(eid)?.code || "", full_name: empById.get(eid)?.full_name || "",
@@ -1691,7 +1843,7 @@ export default {
       const counts = { total: subs.length, valid: 0, not_found: 0, invalid: 0, unknown: 0 };
       const unknownList = [];
       for (const s of subs) {
-        const v = await verifyFacebookPost(s.canonical_url, s.fb_post_id);
+        const v = await verifyShareUrl(s.canonical_url, detectPlatform(s.canonical_url), s.fb_post_id);
         const now = nowIso();
         await env.DB.batch([
           env.DB.prepare("UPDATE share_submissions SET final_check_status=?, final_checked_at=?, last_check_status=?, last_checked_at=?, current_status=?, http_status=?, verification_method=?, error_message=?, updated_at=? WHERE id=?")
@@ -1747,9 +1899,9 @@ export default {
       }
       const scores = scoreEmployees(assignments, subByKey, postsById);
       const empIds = [...scores.keys()];
-      const emps = empIds.length ? (await env.DB.prepare(
-        `SELECT id, unit_id FROM employees WHERE id IN (${empIds.map(() => "?").join(",")})`
-      ).bind(...empIds).all()).results || [] : [];
+      const emps = empIds.length ? await selectInChunks((c) => env.DB.prepare(
+        `SELECT id, unit_id FROM employees WHERE id IN (${c.map(() => "?").join(",")})`
+      ).bind(...c), empIds) : [];
       const empById = new Map(emps.map((e) => [e.id, e]));
       const snapStmts = [...scores.entries()].map(([eid, s]) =>
         env.DB.prepare(
@@ -2177,6 +2329,19 @@ export default {
     }
 
     return err(env, "Không tìm thấy chức năng: " + path, 404);
+  }
+
+export default {
+  // Lưới an toàn (10/11/2026): mọi exception chưa được xử lý đều trả JSON
+  // kèm header CORS thay vì 500 trần — để trình duyệt hiện đúng lỗi thay
+  // vì "Failed to fetch".
+  async fetch(request, env) {
+    try {
+      return await fetchHandler(request, env);
+    } catch (e) {
+      console.error("Unhandled fetch error:", e);
+      return json(env, { ok: false, error: "Lỗi máy chủ — vui lòng thử lại sau, nếu vẫn lỗi hãy báo quản trị viên" }, 500);
+    }
   },
 
   // ================= Cron: rà lại link 2-3 ngày/lần (đề cương 2 mục 19) =========
@@ -2200,7 +2365,7 @@ export default {
             `SELECT * FROM share_submissions WHERE post_id IN (${postIds.map(() => "?").join(",")})`
           ).bind(...postIds).all()).results || [];
           for (const s of subs) {
-            const v = await verifyFacebookPost(s.canonical_url, s.fb_post_id);
+            const v = await verifyShareUrl(s.canonical_url, detectPlatform(s.canonical_url), s.fb_post_id);
             const now = nowIso();
             const wasValid = s.first_check_status === "VALID" && (s.last_check_status || "VALID") === "VALID";
             await env.DB.batch([

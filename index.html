@@ -234,8 +234,8 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
         <h3>Thêm bài viết cần chia sẻ</h3>
         <label>Chiến dịch</label><select id="postCamp"></select>
         <label>Tiêu đề bài viết</label><input id="postTitle" placeholder="VD: FIFA U17 World Cup 2026 – MyTV">
-        <label>Link bài gốc trên Fanpage VNPT Quảng Ninh</label><input id="postUrl" placeholder="https://www.facebook.com/.../posts/pfbid...">
-        <p class="muted">Dán nguyên link đã sao chép từ bài viết trên Fanpage — Facebook hiện thường đưa link dạng .../posts/pfbid... và đó là link hợp lệ (dạng số .../posts/123... cũng dùng được). Không cắt bớt link.</p>
+        <label>Link bài gốc</label><input id="postUrl" placeholder="https://www.facebook.com/.../posts/pfbid...">
+        <p class="muted">Dán nguyên link đã sao chép từ bài gốc trên Facebook, Zalo, TikTok, Instagram hoặc YouTube (VD: facebook.com/.../posts/pfbid..., zalo.me/..., tiktok.com/@.../video/..., instagram.com/p/..., youtube.com/watch?v=...). Facebook hiện thường đưa link dạng .../posts/pfbid... và đó là link hợp lệ (dạng số .../posts/123... cũng dùng được). Không cắt bớt link.</p>
         <div class="row"><div><label>Ngày phát hành</label><input id="postPub" type="date"></div><div><label>Hạn chia sẻ</label><input id="postDeadline" type="date"></div><div><label>Tháng áp dụng</label><input id="postMonth" type="month"></div></div>
         <div class="row">
           <div><label>Đối tượng</label><select id="postScope"><option value="all">Toàn tỉnh</option><option value="unit">Một đơn vị cụ thể</option></select></div>
@@ -393,9 +393,9 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
   <div class="sheet">
     <h2>Xác nhận đã chia sẻ</h2>
     <p class="muted" id="submitModalInfo"></p>
-    <label>URL bài chia sẻ trên Facebook *</label>
+    <label>URL bài đã chia sẻ *</label>
     <input id="submitUrl" type="url" placeholder="https://www.facebook.com/.../posts/pfbid...">
-    <p class="muted" style="margin-top:8px">Dán link bài anh/chị vừa chia sẻ (không phải link bài gốc trên Fanpage). Link chia sẻ thường có dạng .../posts/pfbid... — đó là link hợp lệ, cứ dán nguyên link đã sao chép, không cắt bớt. Hệ thống kiểm tra định dạng, chuẩn hóa, kiểm tra trùng và xác minh link có tồn tại. <b>Điểm chỉ được tính khi link còn tồn tại tại thời điểm chốt tháng.</b></p>
+    <p class="muted" style="margin-top:8px">Dán link bài anh/chị vừa chia sẻ trên Facebook, Zalo, TikTok, Instagram hoặc YouTube (không phải link bài gốc). Link chia sẻ thường có dạng .../posts/pfbid... — đó là link hợp lệ, cứ dán nguyên link đã sao chép, không cắt bớt. Hệ thống kiểm tra định dạng, chuẩn hóa, kiểm tra trùng và xác minh link có tồn tại. <b>Điểm chỉ được tính khi link còn tồn tại tại thời điểm chốt tháng.</b> Link Zalo/TikTok/Instagram/YouTube chưa xác minh tự động được nên sẽ ở trạng thái "Chờ xác minh" để admin kiểm tra thủ công khi chốt tháng.</p>
     <div class="row" style="margin-top:16px">
       <button class="btn primary" id="btnDoSubmit" type="button">Gửi minh chứng</button>
       <button class="btn" id="btnCloseSubmit" type="button">Đóng</button>
@@ -450,6 +450,10 @@ function me(){try{return JSON.parse(localStorage.getItem(LS_USER)||"null");}catc
 function todayVN(){return new Date().toLocaleString("en-CA",{timeZone:"Asia/Ho_Chi_Minh"}).slice(0,10);}
 function monthVN(){return todayVN().slice(0,7);}
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+// Nhãn nền tảng suy ra từ URL (đợt 11: chia sẻ đa nền tảng, không lưu cột mới).
+const PLATFORM_META={facebook:["Facebook","📘"],zalo:["Zalo","💬"],tiktok:["TikTok","🎵"],instagram:["Instagram","📸"],youtube:["YouTube","▶️"]};
+function platformOf(u){try{const h=new URL(String(u||"").trim()).hostname.toLowerCase();if(["facebook.com","www.facebook.com","m.facebook.com","fb.com","web.facebook.com"].includes(h))return "facebook";if(["zalo.me","www.zalo.me","zalo.vn","www.zalo.vn","oa.zalo.me"].includes(h))return "zalo";if(["tiktok.com","www.tiktok.com","m.tiktok.com","vt.tiktok.com"].includes(h))return "tiktok";if(["instagram.com","www.instagram.com","m.instagram.com"].includes(h))return "instagram";if(["youtube.com","www.youtube.com","m.youtube.com","youtu.be"].includes(h))return "youtube";return null;}catch(e){return null;}}
+function platformBadge(u){const p=platformOf(u);if(!p)return "";const m=PLATFORM_META[p];return '<span class="pill">'+m[1]+" "+m[0]+"</span>";}
 function toast(msg,ms){const t=document.getElementById("toast");t.textContent=msg;t.classList.remove("hidden");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.add("hidden");},ms||3200);}
 function $(id){return document.getElementById(id);}
 function show(id,on){$(id).classList.toggle("hidden",!on);}
@@ -907,11 +911,11 @@ async function loadTasks(){
         +'<p class="muted">'+esc(t.campaign_name||"")+' · Trọng số '+t.weight+' điểm · '+(t.level==="mandatory"?"Bắt buộc":"Không bắt buộc")+' · '+req+(t.hashtags?" · "+esc(t.hashtags):"")+'</p>'
         +'<p class="muted">Phát hành: '+fmtDate(t.published_date)+' · Hạn chia sẻ: <b>'+fmtDate(t.deadline)+'</b></p>'
         +(t.content?'<p class="small">'+esc(t.content)+'</p>':"")
-        +(t.submitted_url?'<p class="small">🔗 Minh chứng: <a href="'+esc(t.submitted_url)+'" target="_blank" rel="noopener">'+esc(t.submitted_url)+'</a>'+(t.error_message?' <span class="muted">('+esc(t.error_message)+')</span>':"")+'</p>':"")
+        +(t.submitted_url?'<p class="small">🔗 Minh chứng: <a href="'+esc(t.submitted_url)+'" target="_blank" rel="noopener">'+esc(t.submitted_url)+'</a> '+platformBadge(t.submitted_url)+(t.error_message?' <span class="muted">('+esc(t.error_message)+')</span>':"")+'</p>':"")
         +(t.link_gone_warning?'<p class="bad small">🔴 Bài này đã biến mất — khai báo lại trước khi chốt tháng!</p>':"")
         +'</div><div style="text-align:right">'+statusPill(t.status)+'<br><span class="muted small">Đã mở bài: '+(t.opened_count||0)+' lần</span></div></div>'
         +'<div class="row" style="margin-top:12px">'
-        +'<button class="btn" type="button" onclick="openPost('+t.id+',\''+esc(t.post_url).replace(/'/g,"\\'")+'\')">📘 Mở bài viết Facebook</button>'
+        +'<button class="btn" type="button" onclick="openPost('+t.id+',\''+esc(t.post_url).replace(/'/g,"\\'")+'\')">🔗 Mở bài viết gốc</button>'
         +'<button class="btn primary" type="button" onclick="openSubmit('+t.id+',\''+esc(t.title).replace(/'/g,"\\'")+'\')">✔ Xác nhận đã chia sẻ</button>'
         +(t.submission_id?'<button class="btn small" type="button" onclick="showHistory('+t.submission_id+')">🕘 Lịch sử kiểm tra</button><button class="btn danger small" type="button" onclick="deleteSubmission('+t.id+')">🗑 Xóa minh chứng</button>':"")
         +'</div></div>';
@@ -958,7 +962,7 @@ async function loadPosts(){
     $("postList").innerHTML=state.posts.map(function(p){
       return '<div class="list-item"><div class="ic">📰</div><div class="mid"><div class="t">'+esc(p.title)+' <span class="pill blue">'+p.weight+' điểm</span> '+(p.level==="mandatory"?'<span class="pill warn">Bắt buộc</span>':'<span class="pill grey">Không bắt buộc</span>')+'</div>'
         +'<div class="s">'+esc(p.campaign_name||"")+' · Hạn '+fmtDate(p.deadline)+' · '+(p.scope_type==="unit"?"Đơn vị":"Toàn tỉnh")+' · Đã giao '+p.assigned_count+' CBCNV · Đã khai báo '+p.submitted_count+'</div>'
-        +'<div class="s"><a href="'+esc(p.post_url)+'" target="_blank" rel="noopener">Link bài gốc</a></div></div>'
+        +'<div class="s"><a href="'+esc(p.post_url)+'" target="_blank" rel="noopener">Link bài gốc</a> '+platformBadge(p.post_url)+'</div></div>'
         +'<div><button class="btn small" type="button" onclick="reassignPost('+p.id+')">🔁 Giao lại</button></div></div>';
     }).join("")||'<p class="muted">Tháng này chưa có bài viết nào.</p>';
   }catch(e){toast(e.message);}
@@ -1017,6 +1021,10 @@ async function loadClose(){
   try{
     const d=await api("/api/admin/close-month/status?month="+month);
     const c=d.counts;
+    state.closeUnknown=c.unknown||0;
+    // Nút bị khóa khi còn trường hợp "Chờ xác minh" — bấm cũng chỉ hiện
+    // thông báo, không gọi API vô ích (đợt 11, 10/11/2026).
+    $("btnCloseFinal").disabled=d.locked||state.closeUnknown>0;
     $("closeStatus").innerHTML='<div class="card"><h3>Tháng '+monthLabel(month)+' — '+(d.locked?"🔒 Đã chốt khóa":"Đang mở")+'</h3>'
       +'<p>Tổng link: <b>'+c.total+'</b> · 🟢 Hợp lệ: <b>'+c.valid+'</b> · 🔴 Không tồn tại: <b>'+c.not_found+'</b> · ❌ Không hợp lệ: <b>'+c.invalid+'</b> · 🟡 Chờ xác minh: <b>'+c.unknown+'</b></p>'
       +(c.unknown>0?'<p class="warn" style="margin-top:6px">⚠️ Còn '+c.unknown+' trường hợp chưa xác minh — nút <b>Chốt chính thức</b> đang bị khóa.</p>':"")
@@ -1044,7 +1052,7 @@ async function loadCloseReview(){
         const badge=st==="VALID"?'<span class="pill ok">✅ Hợp lệ</span>':st==="NOT_FOUND"?'<span class="pill bad">❌ Đã xóa</span>':st==="INVALID"?'<span class="pill bad">❌ Không hợp lệ</span>':'<span class="pill warn">⚠️ Chờ kiểm tra</span>';
         const flags=(r.is_duplicate?'<span class="pill bad">Link trùng</span> ':"")+(r.is_old?'<span class="pill warn">Link cũ</span> ':"");
         return '<tr><td><b>'+esc(r.employee_name)+'</b><br><span class="muted">'+esc(r.employee_code)+'</span></td><td>'+esc(r.unit_name||"")+'</td><td>'+esc(r.post_title)+'</td>'
-          +'<td><a href="'+esc(r.canonical_url)+'" target="_blank" rel="noopener">Mở link</a><br><span class="muted small">'+esc(r.canonical_url.slice(0,48))+'…</span></td>'
+          +'<td><a href="'+esc(r.canonical_url)+'" target="_blank" rel="noopener">Mở link</a> '+platformBadge(r.canonical_url)+'<br><span class="muted small">'+esc(r.canonical_url.slice(0,48))+'…</span></td>'
           +'<td>'+(r.first_check_status||"—")+'</td><td>'+(r.final_check_status||r.last_check_status||"—")+'</td>'
           +'<td>'+badge+' '+flags+'</td>'
           +'<td style="white-space:nowrap"><button class="btn small" type="button" onclick="showHistory('+r.id+')">Lịch sử</button> '
@@ -1526,6 +1534,7 @@ function wire(){
   };
   $("btnCloseFinal").onclick=async function(){
     const month=$("closeMonth").value||monthVN();
+    if(state.closeUnknown>0){const m="Còn "+state.closeUnknown+" trường hợp chưa xác minh — xử lý xong mới chốt được.";$("closeFinalMsg").textContent=m;toast(m);return;}
     if(!confirm("Chốt chính thức tháng "+monthLabel(month)+"? Sau khi chốt sẽ tạo snapshot và khóa tháng."))return;
     try{
       const d=await api("/api/admin/close-month/finalize",{method:"POST",body:{month:month}});

@@ -2,14 +2,14 @@
 ### Hệ thống giám sát chia sẻ bài viết truyền thông — VNPT Quảng Ninh
 
 > Trang web: https://dhkdvtqn.github.io/qnh-social/
-> Phiên bản tài liệu: v10 (10/11/2026) — **chấp nhận link Facebook dạng pfbid (VD .../posts/pfbid...): cả link bài gốc khi tạo bài và link minh chứng khi CBCNV khai báo đều dùng được; link pfbid là link đúng chuẩn do Facebook sinh ra khi bấm "Sao chép liên kết", không cần tìm link dạng số.** Các thay đổi trước: v9 — (1) BỎ ngoại lệ "Ban lãnh đạo" (đổi so với v8): lãnh đạo chỉ xem ĐÚNG đơn vị của mình, không còn ngoại lệ theo tên đơn vị — lãnh đạo đơn vị "Ban lãnh đạo" giờ cũng chỉ xem Ban lãnh đạo; muốn xem toàn tỉnh thì đưa tài khoản về đơn vị gốc VNPT Quảng Ninh; (2) ô chọn Đơn vị ở module Quản lý nhân sự đã có "VNPT Quảng Ninh" để gán user về cấp tỉnh.** Các thay đổi trước: v8 — nút "Đăng xuất" ngay dưới nút "Cài đặt" trong menu; module Giám sát đơn vị thêm lựa chọn "VNPT Quảng Ninh (toàn tỉnh)"; siết phạm vi xem của nhóm "Lãnh đạo": chỉ xem ĐÚNG đơn vị của mình, không gồm đơn vị con; v7 — siết quyền Admin truyền thông: chỉ được XEM ở module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa; v6 — làm lại file mẫu import nhân sự và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
+> Phiên bản tài liệu: v11 (10/11/2026) — **(1) Sửa lỗi "Failed to fetch" khi chốt tháng và ở nhiều module (Dashboard, Giám sát đơn vị, Cần quan tâm, Báo cáo): nguyên nhân là Cloudflare D1 chỉ cho tối đa 100 tham số bind mỗi câu lệnh — các truy vấn liệt kê toàn bộ CBCNV toàn tỉnh (hơn 100 người) đều gây lỗi máy chủ; trình duyệt chỉ hiện "Failed to fetch" vì lỗi 500 không kèm header CORS. Nay đã chia nhỏ các truy vấn, bọc lưới an toàn để lần sau hiện đúng lỗi, và `/api/health` có thêm trường `version` (bản hiện tại: `v11`) để kiểm tra Worker đang chạy bản nào — lưu ý cần dán lại `worker.js` mới lên Cloudflare 1 lần thì các sửa chữa phía máy chủ mới có hiệu lực. (2) Chia sẻ đa nền tảng: ngoài Facebook, CBCNV được chia sẻ trên Zalo, TikTok, Instagram, YouTube (cả link bài gốc và link minh chứng); các nền tảng ngoài Facebook chưa xác minh tự động được nên luôn ở trạng thái "Chờ xác minh" để admin kiểm tra thủ công khi chốt tháng. (3) Nút "Chốt chính thức" nay bị khóa thật khi còn trường hợp "Chờ xác minh".** Các thay đổi trước: v10 — chấp nhận link Facebook dạng pfbid (VD .../posts/pfbid...): cả link bài gốc khi tạo bài và link minh chứng khi CBCNV khai báo đều dùng được; link pfbid là link đúng chuẩn do Facebook sinh ra khi bấm "Sao chép liên kết", không cần tìm link dạng số. v9 — (1) BỎ ngoại lệ "Ban lãnh đạo" (đổi so với v8): lãnh đạo chỉ xem ĐÚNG đơn vị của mình, không còn ngoại lệ theo tên đơn vị — lãnh đạo đơn vị "Ban lãnh đạo" giờ cũng chỉ xem Ban lãnh đạo; muốn xem toàn tỉnh thì đưa tài khoản về đơn vị gốc VNPT Quảng Ninh; (2) ô chọn Đơn vị ở module Quản lý nhân sự đã có "VNPT Quảng Ninh" để gán user về cấp tỉnh.** Các thay đổi trước: v8 — nút "Đăng xuất" ngay dưới nút "Cài đặt" trong menu; module Giám sát đơn vị thêm lựa chọn "VNPT Quảng Ninh (toàn tỉnh)"; siết phạm vi xem của nhóm "Lãnh đạo": chỉ xem ĐÚNG đơn vị của mình, không gồm đơn vị con; v7 — siết quyền Admin truyền thông: chỉ được XEM ở module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa; v6 — làm lại file mẫu import nhân sự và bổ sung Phụ lục A ghi rõ cấu trúc 11 cột của file mẫu trong bản PDF; bản v5.1 trước đó đã: theo đúng form tạo nhân sự (thêm cột **User đăng nhập** và **Mật khẩu**, import tự tạo tài khoản ưu tiên theo User đăng nhập → Email → SĐT). Các thay đổi trước: v5 — module "Quản lý nhân sự" là MỘT module duy nhất, không chia tab
 > Mỗi lần hệ thống thay đổi, tài liệu này được cập nhật lại. Bản PDF đi kèm được tạo từ chính file này.
 
 ---
 
 ## 1. QNH Social là gì?
 
-QNH Social giúp VNPT Quảng Ninh quản lý việc CBCNV chia sẻ các bài viết truyền thông của đơn vị trên Facebook:
+QNH Social giúp VNPT Quảng Ninh quản lý việc CBCNV chia sẻ các bài viết truyền thông của đơn vị trên Facebook, Zalo, TikTok, Instagram và YouTube:
 
 **Bộ phận truyền thông** giao bài → **CBCNV** chia sẻ bài lên trang cá nhân/hội nhóm rồi khai báo link minh chứng → **Hệ thống** xác thực link và tổng hợp kết quả → **Admin chốt tháng**, chỉ link còn tồn tại lúc chốt mới được tính điểm.
 
@@ -74,18 +74,18 @@ Vào mục **Nhiệm vụ của tôi**. Mỗi bài cần chia sẻ hiện: tên 
 
 ### Bước 2. Mở bài và chia sẻ
 
-1. Bấm nút **Mở bài viết Facebook** — hệ thống ghi nhận bạn đã mở bài.
-2. Chia sẻ bài viết **công khai** lên trang cá nhân hoặc vào hội nhóm theo yêu cầu của bài.
-3. Sau khi chia sẻ, bấm vào bài chia sẻ của bạn trên Facebook, chọn **Sao chép liên kết**.
+1. Bấm nút **Mở bài viết gốc** — hệ thống ghi nhận bạn đã mở bài.
+2. Chia sẻ bài viết **công khai** lên trang cá nhân hoặc vào hội nhóm theo yêu cầu của bài, trên nền tảng của bài (Facebook, Zalo, TikTok, Instagram hoặc YouTube).
+3. Sau khi chia sẻ, bấm vào bài chia sẻ của bạn, chọn **Sao chép liên kết** (Copy link).
 
-**Cách lấy link đúng:** mở bài viết trên Fanpage → bấm dấu **"..."** ở góc bài → **"Sao chép liên kết"** (Copy link) → dán nguyên link vào hệ thống, không cắt bớt. Lưu ý: Facebook hiện thường đưa link dạng `.../posts/pfbid...` — đó là link đúng chuẩn, cứ dán nguyên như vậy, không cần tìm link dạng số `.../posts/123...`.
+**Cách lấy link đúng (mọi nền tảng):** mở bài bạn vừa chia sẻ → bấm **"..."** (hoặc nút Chia sẻ) → **"Sao chép liên kết"** (Copy link) → dán nguyên link vào hệ thống, không cắt bớt. Các dạng link được chấp nhận: Facebook `.../posts/123...` hoặc `.../posts/pfbid...`; Zalo `zalo.me/...`; TikTok `tiktok.com/@.../video/...` (kể cả link rút gọn chính chủ `vt.tiktok.com/...`); Instagram `instagram.com/p/...` hoặc `/reel/...`; YouTube `youtube.com/watch?v=...` hoặc `youtu.be/...`. Lưu ý: Facebook hiện thường đưa link dạng `.../posts/pfbid...` — đó là link đúng chuẩn, cứ dán nguyên như vậy, không cần tìm link dạng số `.../posts/123...`.
 
 ### Bước 3. Khai báo link minh chứng
 
 1. Quay lại hệ thống, bấm **Xác nhận đã chia sẻ**.
 2. Dán link bài chia sẻ vừa sao chép, bấm **Gửi**.
 3. Hệ thống kiểm tra ngay:
-   - Link đúng định dạng Facebook, đúng là link **bài đã chia sẻ** (không phải link bài gốc, không phải link rút gọn). Hệ thống chấp nhận cả 2 dạng link: `.../posts/123...` (dạng số) và `.../posts/pfbid...` (dạng Facebook sinh ra khi "Sao chép liên kết").
+   - Link đúng định dạng của 1 trong 5 nền tảng (Facebook, Zalo, TikTok, Instagram, YouTube), đúng là link **bài đã chia sẻ** (không phải link bài gốc, không phải link rút gọn lạ như bit.ly). Với Facebook, hệ thống chấp nhận cả 2 dạng link: `.../posts/123...` (dạng số) và `.../posts/pfbid...` (dạng Facebook sinh ra khi "Sao chép liên kết").
    - Link **chưa từng** được ai khai báo trước đó.
    - Nếu đạt: trạng thái **Đã khai báo (chờ xác minh)**. Nếu không đạt: hệ thống báo rõ lý do, bạn kiểm tra lại link và gửi lại.
 
@@ -111,7 +111,7 @@ Vào **Chiến dịch → Tạo chiến dịch**, nhập: tên chiến dịch, m
 
 Vào **Bài truyền thông → Thêm bài**, nhập:
 
-- **Link bài gốc** trên Fanpage VNPT Quảng Ninh — dán nguyên link đã sao chép từ bài viết (mở bài trên Fanpage → dấu "..." → "Sao chép liên kết"); hệ thống chấp nhận cả dạng `.../posts/123...` và dạng `.../posts/pfbid...`.
+- **Link bài gốc** — dán nguyên link đã sao chép từ bài gốc trên Facebook, Zalo, TikTok, Instagram hoặc YouTube (mở bài → dấu "..." → "Sao chép liên kết"); với Facebook, hệ thống chấp nhận cả dạng `.../posts/123...` và dạng `.../posts/pfbid...`.
 - **Ngày phát hành** và **hạn chia sẻ**.
 - **Đối tượng**: toàn tỉnh hoặc một đơn vị cụ thể.
 - **Mức bắt buộc** và **trọng số điểm**: bài thường 1 điểm, bài trọng tâm 2 điểm, bài chiến dịch lớn 3 điểm.
@@ -128,6 +128,8 @@ Bấm **Lưu**: hệ thống **tự động giao nhiệm vụ** cho toàn bộ C
 1. **Kiểm tra và chốt số liệu:** hệ thống rà lại **100% link** đã khai báo trong tháng. Link còn tồn tại → Hợp lệ; link đã xóa/không tồn tại → Không hợp lệ, không tính điểm.
 2. **Xử lý các trường hợp chờ xác minh:** nếu còn trường hợp chưa xác minh được, nút **Chốt chính thức bị khóa**. Admin phải xử lý hết (xác nhận hợp lệ hoặc không hợp lệ, kèm lý do) mới chốt được.
 3. **Chốt chính thức:** hệ thống tạo **bản snapshot kết quả tháng** và **khóa tháng**. Sau khi khóa, CBCNV không sửa được kết quả; admin muốn sửa phải nhập lý do, hệ thống ghi nhật ký.
+
+> **Lưu ý thứ tự:** bước 1 (Kiểm tra và chốt số liệu) rà lại toàn bộ link và ghi đè kết quả kiểm tra thủ công trước đó — nên bấm bước 1 TRƯỚC, rồi mới xử lý thủ công các link "Chờ xác minh" ở bước 2, rồi bấm "Chốt chính thức" ở bước 3.
 
 > Chỉ link ở trạng thái **Hợp lệ khi chốt tháng** mới được tính vào tỷ lệ hoàn thành và điểm số.
 
@@ -206,9 +208,10 @@ Trong form nhân sự (mục 6.1 hoặc khi Sửa ở mục 6.3), tick checkbox 
 
 ---
 
-## 7. Lưu ý quan trọng về xác minh link Facebook
+## 7. Lưu ý quan trọng về xác minh link
 
 - Facebook hạn chế truy cập tự động, nên có những link hệ thống **không xác minh tự động được** và chuyển sang trạng thái **Chờ xác minh** — đây là trạng thái bình thường, **không phải link sai**. Admin kiểm tra thủ công các trường hợp này trước khi chốt tháng.
+- Các nền tảng **Zalo, TikTok, Instagram, YouTube chưa có cách xác minh tự động** nên link ở các nền tảng này luôn ở trạng thái **Chờ xác minh** — admin kiểm tra thủ công trước khi chốt tháng (không phải link sai).
 - Bài chia sẻ **đã xóa trước ngày chốt tháng = không hoàn thành** bài đó, dù lúc khai báo link còn tồn tại.
 - **Không** dùng link bài gốc, link của người khác, hoặc link đã khai báo rồi để khai báo.
 - Bài chia sẻ phải ở chế độ mà hệ thống hoặc cán bộ kiểm tra có thể xem được; nếu đặt quyền riêng tư khiến không ai xác minh được thì kết quả sẽ không được tự động tính.
@@ -222,9 +225,10 @@ Trong form nhân sự (mục 6.1 hoặc khi Sửa ở mục 6.3), tick checkbox 
 | "Tài khoản chưa gắn với CBCNV nào" | Tài khoản chưa gắn mã nhân viên — admin làm theo mục 6.3 |
 | Sau import, một số người hiện "Chưa có tài khoản" | Dòng đó không có User đăng nhập/Email/SĐT hợp lệ để tạo tài khoản — bấm Sửa ở dòng đó, nhập User đăng nhập (email/SĐT) rồi Lưu là hệ thống tạo tài khoản (mục 6.3). Dòng báo "User đăng nhập đã tồn tại" là do email/SĐT đó đã gắn với người khác |
 | Khai báo link bị báo "Link đã được sử dụng" | Link này đã có người khai báo trước — kiểm tra lại xem có nhầm link bài gốc hay link của người khác không |
-| Khai báo link bị báo "Link không hợp lệ" | Link không phải bài Facebook, là link rút gọn, hoặc là link bài gốc — lấy đúng link bài chia sẻ của mình (xem cách lấy link ở mục 4, bước 2) |
+| Khai báo link bị báo "Link không hợp lệ" | Link không phải bài trên 1 trong 5 nền tảng (Facebook, Zalo, TikTok, Instagram, YouTube), là link rút gọn lạ, hoặc là link bài gốc — lấy đúng link bài chia sẻ của mình (xem cách lấy link ở mục 4, bước 2) |
 | Tạo bài / khai báo link dạng `.../posts/pfbid...` bị báo không hợp lệ | Đã sửa từ bản v10: link pfbid là link đúng chuẩn, hệ thống đã chấp nhận — nếu vẫn báo lỗi, kiểm tra xem đã dán `worker.js` mới lên Cloudflare chưa |
-| Link mãi ở "Chờ xác minh" | Facebook hạn chế truy cập tự động — admin kiểm tra thủ công, xem mục 5.3 |
+| Link mãi ở "Chờ xác minh" | Facebook hạn chế truy cập tự động; link Zalo/TikTok/Instagram/YouTube thì chưa có xác minh tự động — admin kiểm tra thủ công, xem mục 5.3 |
+| Bấm "Chốt chính thức" (hoặc mở Dashboard/Báo cáo) báo "Failed to fetch" | Đã sửa từ bản v11: nguyên nhân là lỗi máy chủ (D1 giới hạn 100 tham số bind) không kèm header CORS — kiểm tra xem đã dán `worker.js` mới lên Cloudflare chưa, rồi mở `/api/health` xem trường `version` có phải `v11` không |
 | Không chốt tháng được | Còn trường hợp "Chờ xác minh" chưa xử lý — xử lý hết rồi mới bấm Chốt chính thức (mục 5.3) |
 | Nhập Excel báo thiếu cột | Bảng đối chiếu chưa ánh xạ cột Mã nhân viên — ánh xạ lại cột Mã nhân viên và Họ tên rồi import |
 | Admin truyền thông bấm thêm/sửa nhân sự hoặc đơn vị thì bị báo không có quyền | Đúng phân quyền từ bản v7: Admin truyền thông chỉ được xem ở 2 module Quản lý nhân sự và Đơn vị, không được thêm/sửa/xóa (kể cả import) — việc này do Super Admin hoặc Sub Admin làm (mục 3 và 6) |

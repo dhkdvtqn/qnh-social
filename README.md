@@ -3,14 +3,25 @@
 > **Tên hiển thị:** VNPT QUẢNG NINH — HỆ THỐNG GIÁM SÁT CHIA SẺ TRUYỀN THÔNG
 > **Tên ngắn:** QNH Social
 >
-> **Phiên bản v5 — 09/11/2026 (đính chính module Quản lý nhân sự):** một module
-> duy nhất, **không chia tab** — 1 form tạo đồng thời hồ sơ CBCNV + tài khoản
-> đăng nhập đã gắn mã NV; import Excel **tự tạo tài khoản đăng nhập** cho
-> dòng có Email/SĐT; 1 danh sách thống nhất có lọc theo đơn vị + tìm kiếm
-> không dấu; phân quyền xem số liệu theo nhóm đối tượng **"Lãnh đạo"** (đơn
-> vị của mình + đơn vị trực thuộc; chỉ lãnh đạo tỉnh — đơn vị gốc VNPT Quảng
-> Ninh — mới xem toàn tỉnh). **Đợt này CÓ thay đổi `worker.js` → cần dán lại
-> lên Cloudflare 1 lần** (xem "Chưa làm" mục 1).
+> **Phiên bản v11 — 10/11/2026 (sửa lỗi "Failed to fetch" khi chốt tháng + chia sẻ đa nền tảng):**
+> (1) **Nguyên nhân lỗi 500 đã tìm ra:** Cloudflare D1 chỉ cho tối đa **100 tham số
+> bind mỗi câu lệnh** — các truy vấn `IN (...)` liệt kê toàn bộ CBCNV toàn tỉnh
+> (hơn 100 người) ở Dashboard/Chốt tháng/Báo cáo/Cần quan tâm đều throw
+> `D1_ERROR: too many SQL variables`; Worker cũ không có try/catch tổng nên
+> Cloudflare trả 500 **không kèm header CORS** → trình duyệt chỉ hiện
+> "Failed to fetch", che mất lỗi thật. Nay mọi truy vấn IN dài đều chia nhỏ
+> theo nhóm 90 id, `autoAssign` chia nhỏ batch 100 câu, toàn bộ hàm `fetch`
+> được bọc try/catch tổng trả JSON lỗi tiếng Việt **kèm header CORS**, và
+> `/api/health` trả thêm `"version":"v11"` để nhìn vào là biết Worker đang chạy
+> bản nào. Nút "Chốt chính thức" nay **bị khóa thật** khi còn trường hợp "Chờ
+> xác minh" (trước đây chỉ hiện dòng chữ cảnh báo nhưng nút vẫn bấm được).
+> (2) **Chia sẻ đa nền tảng:** ngoài Facebook, CBCNV được chia sẻ trên
+> **Zalo, TikTok, Instagram, YouTube** (cả link bài gốc khi tạo bài và link
+> minh chứng khi khai báo); link rút gọn chính chủ (VD `vt.tiktok.com`) được
+> chấp nhận. Chỉ Facebook có xác minh tự động (oEmbed) — các nền tảng khác
+> luôn ở trạng thái "Chờ xác minh" để admin kiểm tra thủ công khi chốt tháng.
+> **Đợt này CÓ thay đổi `worker.js` → cần dán lại lên Cloudflare 1 lần**
+> (xem "Chưa làm" mục 1).
 
 Web app quản lý và đánh giá công tác chia sẻ bài viết truyền thông của toàn bộ
 CBCNV VNPT Quảng Ninh, theo 2 file đề cương: mô hình **giao bài → CBCNV chia sẻ
@@ -301,13 +312,56 @@ qnh-social/
 ├── schema.sql      # D1 schema: 19 bảng + seed 10 đơn vị + settings
 ├── wrangler.jsonc  # Worker qnh-social-api, D1 qnh-social-db, cron 2 ngày/lần
 ├── docs/
-│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v10)
+│   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v11)
 └── README.md       # File này
 ```
 
 ## Chưa làm / cần anh Tuấn quyết định
 
-1. **Đợt 10 (10/11/2026, chấp nhận link Facebook dạng pfbid — BẢN MỚI NHẤT):**
+1. **Đợt 11 (10/11/2026, sửa lỗi "Failed to fetch" khi chốt tháng + chia sẻ đa nền tảng — BẢN MỚI NHẤT):**
+   (a) **Nguyên nhân lỗi 500 đã tìm ra (xác nhận bằng harness):** Cloudflare D1
+   chỉ cho tối đa **100 tham số bind mỗi câu lệnh** — các truy vấn `IN (...)`
+   liệt kê toàn bộ CBCNV toàn tỉnh (hơn 100 người) ở Dashboard (`/api/dashboard`),
+   Giám sát đơn vị (`/api/dashboard/unit`), Cần quan tâm (`/api/dashboard/attention`),
+   Báo cáo (`/api/reports/monthly`), Chốt tháng (`/api/admin/close-month/finalize`)
+   và `/api/employees` đều throw `D1_ERROR: too many SQL variables` khi dữ liệu
+   thật vượt 100 người. Hàm `fetch` của Worker không có try/catch tổng nên
+   Cloudflare trả 500 mặc định **không kèm header CORS** → trình duyệt chỉ hiện
+   "Failed to fetch", che mất lỗi thật (lỗi CORS là hệ quả, không phải nguyên
+   nhân). Cách sửa: thêm helper `selectInChunks` (nhóm 90 id) cho mọi truy vấn
+   IN dài; `autoAssign` chia nhỏ `env.DB.batch` theo nhóm 100 câu; bọc toàn bộ
+   hàm `fetch` trong try/catch tổng trả JSON lỗi tiếng Việt kèm header CORS;
+   `/api/health` trả thêm `"version":"v11"`; `ensureSchema` bổ sung lũy tiến 2
+   bảng `monthly_final_results` + `link_check_history` (phòng D1 tạo từ schema
+   cũ). Nút "Chốt chính thức" nay **bị khóa thật** (`disabled`) khi còn trường
+   hợp "Chờ xác minh" và bấm nút cũng chỉ hiện thông báo, không gọi API vô ích
+   (trước đây chỉ hiện dòng chữ cảnh báo nhưng nút vẫn bấm được).
+   (b) **Chia sẻ đa nền tảng:** CBCNV được chia sẻ trên **Zalo, TikTok, Instagram,
+   YouTube** ngoài Facebook — áp dụng cho cả link bài gốc khi tạo bài và link minh
+   chứng khi khai báo (dùng chung `canonicalizeShareUrl` + `detectPlatform`).
+   Dạng URL được chấp nhận: TikTok `tiktok.com/@user/video/<id>` và link rút gọn
+   chính chủ `vt.tiktok.com/...`; Instagram `/p/<mã>/`, `/reel/<mã>/`; Zalo
+   `zalo.me/<id>`; YouTube `watch?v=<id>`, `youtu.be/<id>`, `/shorts/<id>`; Facebook
+   giữ nguyên (gồm pfbid). Link rút gọn lạ (bit.ly...) vẫn bị từ chối. Chỉ Facebook
+   có xác minh tự động (oEmbed) — các nền tảng khác luôn trả UNKNOWN ("Chờ xác minh")
+   với lý do rõ ràng, admin kiểm tra thủ công khi chốt tháng; không tự cho đạt,
+   không tự cho trượt. Không đổi schema: nền tảng suy ra từ URL, hiển thị nhãn
+   (📘 Facebook / 💬 Zalo / 🎵 TikTok / 📸 Instagram / ▶️ YouTube) trong danh
+   sách link. Giao diện cập nhật nhãn "Link bài gốc", placeholder + ghi chú ở 2
+   ô link, nút "🔗 Mở bài viết gốc". **Lưu ý thứ tự khi chốt tháng:** nút "Kiểm
+   tra trước khi chốt" (preview) rà lại toàn bộ link và ghi đè kết quả kiểm tra
+   thủ công trước đó — nên bấm preview TRƯỚC, rồi xác nhận thủ công các link
+   "Chờ xác minh", rồi mới bấm "Chốt chính thức".
+   **Đợt này CÓ thay đổi `worker.js`** — cần: (a) đẩy `index.html` +
+   `worker.js` + `README.md` + `docs/huong-dan-su-dung.md` mới lên GitHub;
+   (b) **dán lại `worker.js` mới lên Cloudflare** (Worker `qnh-social-api`)
+   thì các thay đổi phía máy chủ mới có hiệu lực; (c) kiểm tra `/api/health`
+   trả `database: "ok"` **và** `"version":"v11"` sau khi dán (không cần chạy
+   lại schema — không đổi schema). Sau đó kiểm tra thử 1 vòng: Dashboard tháng
+   11 và bấm "Chốt chính thức" không còn báo "Failed to fetch"; tạo bài bằng
+   link TikTok/Zalo/Instagram/YouTube được chấp nhận. Kiểm tra bằng harness:
+   61/61 PASS (cả hồi quy đợt 7/9/10).
+2. **Đợt 10 (10/11/2026, chấp nhận link Facebook dạng pfbid):**
    Link bài viết dạng `.../posts/pfbid...` (Protected Facebook ID — định dạng
    Facebook sinh ra khi bấm "Sao chép liên kết" từ khoảng 2022) trước đây bị
    hệ thống từ chối vì `extractFbIds` chỉ trích được Post ID dạng số → tạo
@@ -330,7 +384,7 @@ qnh-social/
    `https://www.facebook.com/vinaphonequangninh/posts/pfbid02nN5o8PbigLsRmQk9YJGnaAAfdc4NiorjnSUSEbhzJSuUAjFnuHn8EJDVdaUcpxYnl`
    phải tạo được bài (không còn báo lỗi); khai báo minh chứng bằng link chia
    sẻ dạng pfbid cũng được chấp nhận. Kiểm tra bằng harness: 26/26 PASS.
-2. **Đợt 9 (09/11/2026, bỏ ngoại lệ "Ban lãnh đạo" + ô chọn đơn vị có VNPT Quảng Ninh):**
+3. **Đợt 9 (09/11/2026, bỏ ngoại lệ "Ban lãnh đạo" + ô chọn đơn vị có VNPT Quảng Ninh):**
    (a) **Bỏ hẳn ngoại lệ "Ban lãnh đạo"** (đổi so với đợt 8): lãnh đạo chỉ xem
    **đúng đơn vị mình**, không còn ngoại lệ theo tên đơn vị — `isProvinceWideLeader`
    chỉ còn điều kiện đơn vị gốc, `isProvinceWideFE` tương tự; `tongdangdung@vnpt.vn`
@@ -349,7 +403,7 @@ qnh-social/
    đăng nhập bằng `hant.qnh@vnpt.vn` → chỉ thấy VNPT Hạ Long (không đổi); gán 1 lãnh
    đạo về VNPT Quảng Ninh trong Quản lý nhân sự → tài khoản đó xem toàn tỉnh.
    Kiểm tra bằng harness: 55/55 PASS.
-3. **Đợt 8 (09/11/2026, nút Đăng xuất + VNPT Quảng Ninh toàn tỉnh + siết phạm vi lãnh đạo — ĐÃ BỊ ĐỢT 9 SỬA PHẦN NGOẠI LỆ "Ban lãnh đạo"):**
+4. **Đợt 8 (09/11/2026, nút Đăng xuất + VNPT Quảng Ninh toàn tỉnh + siết phạm vi lãnh đạo — ĐÃ BỊ ĐỢT 9 SỬA PHẦN NGOẠI LỆ "Ban lãnh đạo"):**
    (a) nút **"🚪 Đăng xuất"** ngay dưới nút **Cài đặt** trong menu trái
    (và cuối danh sách menu ☰ trên điện thoại); (b) module **Giám sát đơn vị**
    thêm lựa chọn **"VNPT Quảng Ninh (toàn tỉnh)"** — chỉ user có phạm vi toàn
@@ -373,7 +427,7 @@ qnh-social/
    đơn vị khác bị chặn; nút Đăng xuất nằm ngay dưới Cài đặt. (Bước kiểm tra
    `tongdangdung@vnpt.vn` xem toàn tỉnh đã đổi ở đợt 9: giờ chỉ thấy Ban lãnh
    đạo.) Kiểm tra bằng harness: 44/44 PASS.
-4. **Đợt 7 (09/11/2026, siết quyền Admin truyền thông):**
+5. **Đợt 7 (09/11/2026, siết quyền Admin truyền thông):**
    role `admin` **chỉ được XEM** ở module Quản lý nhân sự và Đơn vị (không
    được thêm/sửa/xóa nhân sự, tài khoản hay đơn vị, kể cả import) — server
    chặn cứng bằng `canManagePersonnel` ở mọi endpoint ghi của 2 module,
@@ -388,7 +442,7 @@ qnh-social/
    danh sách, không có form/nút ghi) → thử gọi API thêm/sửa nhân sự hoặc
    đơn vị bằng tài khoản đó phải trả 403; đăng nhập bằng sub_admin vẫn
    thêm/sửa/xóa được; admin vẫn tạo được chiến dịch/bài và chốt tháng.
-5. **Đợt 5 (09/11/2026, đính chính module Quản lý nhân sự — BẢN NÀY THAY
+6. **Đợt 5 (09/11/2026, đính chính module Quản lý nhân sự — BẢN NÀY THAY
    THẾ HOÀN TOÀN bản 2 tab ở đợt 4):** 1 form duy nhất tạo đồng thời hồ sơ
    CBCNV + tài khoản đăng nhập; import tự tạo tài khoản; 1 danh sách thống
    nhất có lọc đơn vị + tìm kiếm không dấu; phân quyền xem số liệu theo
