@@ -12,6 +12,13 @@
     // "ALLOWED_ORIGIN": "https://qnh-social.pages.dev"
     // Nếu dùng GitHub Pages: "https://dhkdvtqn.github.io"
     "ALLOWED_ORIGIN": "*"
+    // Module Đối soát Facebook (v14):
+    //   FB_PAGE_ID (var) — ID số của Fanpage nguồn, dùng để đổi link bài
+    //     dạng số sang Graph post ID. VD: "123456789012345".
+    //   FB_PAGE_TOKEN (secret — KHÔNG ghi vào file này): Page Access Token,
+    //     cấp bằng: npx wrangler secret put FB_PAGE_TOKEN
+    //   Chưa có 2 biến này thì chế độ Graph API báo lỗi hướng dẫn, chế độ
+    //   dán danh sách vẫn chạy bình thường, không cần token.
   },
   "d1_databases": [
     {

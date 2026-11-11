@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0067B3">
 <title>QNH Social — Giám sát chia sẻ truyền thông VNPT Quảng Ninh</title>
 <script src="config.js"></script>
+<script src="fb-scan.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--primary:#0067B3;--primary-d:#004E8A;--primary-l:#E6F2FB;--bg:#F4F8FC;--card:#fff;--text:#0F172A;--muted:#64748B;--line:#DCE6F0;--ok:#16A34A;--bad:#DC2626;--warn:#D97706;--radius:14px}
@@ -291,6 +292,82 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
       </div>
     </section>
 
+    <section id="view-fbscan" class="view hidden">
+      <h2>🔍 Đối soát Facebook</h2>
+      <div class="alert-yellow">⚠️ <b>Giới hạn thật của Facebook (đọc trước khi dùng):</b><br>
+      • Không còn UID toàn cục — Graph API chỉ trả ID riêng theo app/page. Map theo UID chỉ khớp khi UID của CBCNV được ghi từ cùng một app/page.<br>
+      • Không tìm bài theo hashtag qua API (Meta bỏ từ v2.0). Chế độ hashtag chỉ làm bằng cách dán danh sách link bài đã dùng hashtag.<br>
+      • Chỉ share/like/comment <b>công khai</b> mới thấy được. Share để bạn bè hoặc riêng tư thì Meta giấu hẳn — không tool nào lấy được.<br>
+      • Không scrape facebook.com bằng token kiểu tool cũ. Page token (nếu có) chỉ nằm trong secret của Worker, không bao giờ ra trình duyệt.</div>
+      <div class="card">
+        <h3>Bước 1 — Chọn bài / hashtag</h3>
+        <div class="row"><div><label>Chế độ</label><select id="fbMode"><option value="fanpage">1 · Chia sẻ từ Fanpage</option><option value="hashtag">2 · Bài đăng trực tiếp (hashtag)</option></select></div><div><label>Tháng</label><input id="fbMonth" type="month"></div></div>
+        <div id="fbFanpageBox">
+          <label>Bài đã giao trong tháng</label><select id="fbPost"><option value="">— Dán link bài bên dưới —</option></select>
+          <label>Hoặc dán link bài trên Fanpage</label><input id="fbPostUrl" placeholder="https://www.facebook.com/.../posts/pfbid...">
+          <label>Graph post ID (tùy chọn — chỉ dùng cho chế độ Graph API khi link bài dạng pfbid)</label><input id="fbGraphPostId" placeholder="VD: 123456789012345_987654321098765">
+          <p class="muted">Link pfbid không đổi được sang Graph post ID — nếu dùng Graph API với link pfbid thì nhập Graph post ID vào ô trên (lấy trong Meta Business Suite → Bài viết → ID bài), hoặc dùng chế độ dán danh sách.</p>
+        </div>
+        <div id="fbHashtagBox" class="hidden">
+          <label>Hashtag (không nhập #)</label><input id="fbHashtag" placeholder="VD: LoveVNPT">
+          <p class="muted">Facebook không cho tìm bài theo hashtag qua API — đợt quét này chỉ làm bằng cách dán danh sách link bài đã dùng hashtag ở Bước 2, hệ thống trích tác giả từng link rồi map.</p>
+        </div>
+        <label>Loại tương tác cần tìm <span class="muted">(mỗi loại = 1 đợt quét; mặc định chỉ Share để tính điểm)</span></label>
+        <div class="row">
+          <label style="font-weight:normal;margin:0;display:flex;gap:8px;align-items:center;min-height:48px"><input type="checkbox" class="fbType" value="share" checked style="width:auto;min-height:auto"> Chia sẻ (Share)</label>
+          <label style="font-weight:normal;margin:0;display:flex;gap:8px;align-items:center;min-height:48px"><input type="checkbox" class="fbType" value="like" style="width:auto;min-height:auto"> Thích (Like)</label>
+          <label style="font-weight:normal;margin:0;display:flex;gap:8px;align-items:center;min-height:48px"><input type="checkbox" class="fbType" value="comment" style="width:auto;min-height:auto"> Bình luận (Comment)</label>
+        </div>
+        <div style="margin-top:14px"><button class="btn primary block" id="btnFbCreate" type="button">Tạo đợt quét</button></div>
+        <p id="fbCreateMsg" class="muted" style="margin-top:8px"></p>
+      </div>
+      <div class="card">
+        <h3>Các đợt quét</h3>
+        <div id="fbScanList"></div>
+      </div>
+      <div class="card hidden" id="fbDetailCard">
+        <h3>Bước 2 — Nạp danh sách người tương tác</h3>
+        <div id="fbScanSummary"></div>
+        <label>Dán danh sách (mỗi dòng 1 người)</label>
+        <textarea id="fbPaste" placeholder="Nguyễn Văn A https://www.facebook.com/nguyenvana&#10;Trần Thị B https://www.facebook.com/profile.php?id=1000123456789&#10;1000987654321&#10;https://www.facebook.com/phamthid/posts/pfbid... (link bài đã chia sẻ)"></textarea>
+        <p class="muted" id="fbPasteCount"></p>
+        <p class="muted">Chấp nhận: tên + link Facebook, UID trần, hoặc link bài đã chia sẻ (khuyến khích dán link bài — có link thì mới ghi nhận được minh chứng). Chỉ share/like/comment <b>công khai</b> mới thấy được.</p>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnFbIngestPaste" type="button">🔍 Map và đối soát (dán danh sách)</button>
+          <button class="btn" id="btnFbIngestGraph" type="button">🌐 Quét qua Graph API</button>
+        </div>
+        <p id="fbIngestMsg" class="muted" style="margin-top:8px"></p>
+        <h3 style="margin-top:16px">Bước 3 — Kết quả đối soát</h3>
+        <div class="row">
+          <select id="fbUnitFilter"><option value="">Tất cả đơn vị</option></select>
+          <select id="fbResultFilter"><option value="all">Tất cả kết quả</option><option value="matched">Đã khớp</option><option value="unmatched">Chưa map được</option><option value="notshared">Chưa chia sẻ</option></select>
+          <button class="btn" id="btnFbReload" type="button">Xem</button>
+        </div>
+        <div id="fbResultWrap" style="margin-top:10px"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnFbApplyAll" type="button">✔ Ghi nhận tất cả đã khớp</button>
+          <button class="btn" id="btnFbExportCsv" type="button">⬇ Xuất CSV</button>
+          <button class="btn" id="btnFbExportXlsx" type="button">⬇ Xuất Excel</button>
+        </div>
+        <p id="fbApplyMsg" class="muted" style="margin-top:8px"></p>
+        <div id="fbNotSharedWrap" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h3>Gán Facebook UID cho CBCNV</h3>
+        <p class="muted">Map theo UID chỉ khớp khi UID đã gán đúng. Nhập mã NV để tìm, rồi nhập UID số / username / link Facebook. 1 UID chỉ gắn 1 CBCNV (hệ thống chặn trùng). Chỉ Super Admin / Sub Admin làm được (Admin truyền thông chỉ xem).</p>
+        <div class="row">
+          <div><label>Mã nhân viên</label><input id="fbUidCode" placeholder="VD: NV001"></div>
+          <div><label>Facebook UID / username / link</label><input id="fbUidInput" placeholder="VD: 1000123456789"></div>
+        </div>
+        <p class="muted" id="fbUidInfo"></p>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="btnFbUidFind" type="button">Tìm CBCNV</button>
+          <button class="btn primary" id="btnFbUidSave" type="button">Lưu UID</button>
+        </div>
+        <p id="fbUidMsg" class="muted" style="margin-top:8px"></p>
+      </div>
+    </section>
+
     <section id="view-reports" class="view hidden">
       <h2>Báo cáo &amp; xuất Excel</h2>
       <div class="card">
@@ -344,7 +421,7 @@ th{color:var(--muted);font-size:12px;text-transform:uppercase}
       <div class="card"><h3>Thống kê hệ thống</h3><div id="adminStats" class="muted">—</div></div>
       <div class="card"><div id="perList"></div></div>
       <div class="card"><h3>📜 Nhật ký hệ thống (Audit log)</h3>
-        <div class="row"><select id="auditAction"><option value="">Tất cả thao tác</option><option value="manual_verify">Xác nhận thủ công</option><option value="unlock_month">Mở khóa tháng</option><option value="close_month_finalize">Chốt tháng</option><option value="delete_submission">Xóa minh chứng</option><option value="edit_result">Sửa kết quả</option><option value="admin_reset_password">Admin đặt lại MK</option><option value="create_user">Tạo tài khoản</option><option value="edit_user">Sửa tài khoản</option><option value="delete_user">Xóa tài khoản</option><option value="create_personnel">Tạo nhân sự</option><option value="update_personnel">Sửa nhân sự</option><option value="delete_personnel">Xóa nhân sự</option><option value="import_employees">Import nhân sự</option><option value="edit_employee">Sửa CBCNV</option><option value="delete_employee">Xóa CBCNV</option><option value="edit_unit">Sửa đơn vị</option><option value="delete_unit">Xóa đơn vị</option></select><button class="btn" id="btnLoadAudit" type="button">Xem</button></div>
+        <div class="row"><select id="auditAction"><option value="">Tất cả thao tác</option><option value="manual_verify">Xác nhận thủ công</option><option value="fb_scan_apply">Đối soát Facebook (ghi nhận)</option><option value="fb_scan_create">Đối soát Facebook (tạo đợt quét)</option><option value="unlock_month">Mở khóa tháng</option><option value="close_month_finalize">Chốt tháng</option><option value="delete_submission">Xóa minh chứng</option><option value="edit_result">Sửa kết quả</option><option value="admin_reset_password">Admin đặt lại MK</option><option value="create_user">Tạo tài khoản</option><option value="edit_user">Sửa tài khoản</option><option value="delete_user">Xóa tài khoản</option><option value="create_personnel">Tạo nhân sự</option><option value="update_personnel">Sửa nhân sự</option><option value="delete_personnel">Xóa nhân sự</option><option value="import_employees">Import nhân sự</option><option value="edit_employee">Sửa CBCNV</option><option value="delete_employee">Xóa CBCNV</option><option value="edit_unit">Sửa đơn vị</option><option value="delete_unit">Xóa đơn vị</option></select><button class="btn" id="btnLoadAudit" type="button">Xem</button></div>
         <div id="auditList" style="margin-top:10px"></div>
       </div>
     </section>
@@ -511,17 +588,17 @@ function logout(silent){
 }
 
 /* ================= State & điều hướng ================= */
-const state={user:null,myEmp:null,units:[],unitsAll:[],campaigns:[],posts:[],view:"dashboard",submitPostId:null,manualSubId:null,closeFilter:"all",repRows:[],repDetail:[],repPosts:[],empImpRows:[],empImpHeaders:[],empImpCells:[],personnel:[],perEdit:null,editUnitId:null,campEdit:null,postEdit:null};
+const state={user:null,myEmp:null,units:[],unitsAll:[],campaigns:[],posts:[],view:"dashboard",submitPostId:null,manualSubId:null,closeFilter:"all",repRows:[],repDetail:[],repPosts:[],empImpRows:[],empImpHeaders:[],empImpCells:[],personnel:[],perEdit:null,editUnitId:null,campEdit:null,postEdit:null,fbScans:[],fbScanId:null,fbScanDetail:null,fbScanPosts:[],fbUidEmp:null};
 const NAV=[
   ["dashboard","🏠","Tổng quan"],["tasks","✅","Nhiệm vụ của tôi"],["campaigns","🎯","Chiến dịch"],
   ["posts","📰","Bài truyền thông"],["monitor","🔎","Giám sát đơn vị"],["attention","🔴","Cần quan tâm"],
-  ["close","🔒","Chốt tháng"],["reports","📊","Báo cáo"],["personnel","👥","Quản lý nhân sự"],
+  ["close","🔒","Chốt tháng"],["fbscan","🔍","Đối soát Facebook"],["reports","📊","Báo cáo"],["personnel","👥","Quản lý nhân sự"],
   ["units","🏢","Đơn vị"],["notifs","🔔","Thông báo"],["settings","⚙️","Cài đặt"]
 ];
 function navVisible(it){
   const u=state.user;if(!u)return false;
   if(it[0]==="personnel")return isAdminRole();
-  if(it[0]==="campaigns"||it[0]==="posts"||it[0]==="units"||it[0]==="close")return isAdminRole();
+  if(it[0]==="campaigns"||it[0]==="posts"||it[0]==="units"||it[0]==="close"||it[0]==="fbscan")return isAdminRole();
   if(it[0]==="tasks")return true;
   // Giám sát đơn vị / Cần quan tâm / Báo cáo là số liệu đơn vị-toàn tỉnh:
   // CBCNV không xem; lãnh đạo (role leader HOẶC nhóm đối tượng "Lãnh đạo"
@@ -590,6 +667,7 @@ function go(view){
   if(view==="monitor")loadMonitor();
   if(view==="attention")loadAttention();
   if(view==="close")loadClose();
+  if(view==="fbscan")loadFbScan();
   if(view==="reports")loadReports();
   if(view==="personnel")loadPersonnel();
   if(view==="units")loadUnits();
@@ -1193,7 +1271,7 @@ function typedValue(cell){
   if(cell.t==="b")return cell.v?"TRUE":"FALSE";
   return cell.v==null?"":String(cell.v);
 }
-const EMP_FIELDS=[["","— Bỏ qua cột này —"],["code","Mã nhân viên *"],["full_name","Họ tên *"],["login","User đăng nhập"],["password","Mật khẩu (để trống = Vnpt@2026)"],["unit_name","Đơn vị"],["title","Chức danh"],["group_name","Nhóm đối tượng"],["email","Email"],["phone","Số điện thoại"],["facebook_url","Facebook URL"],["status","Trạng thái"]];
+const EMP_FIELDS=[["","— Bỏ qua cột này —"],["code","Mã nhân viên *"],["full_name","Họ tên *"],["login","User đăng nhập"],["password","Mật khẩu (để trống = Vnpt@2026)"],["unit_name","Đơn vị"],["title","Chức danh"],["group_name","Nhóm đối tượng"],["email","Email"],["phone","Số điện thoại"],["facebook_url","Facebook URL"],["facebook_uid","Facebook UID"],["status","Trạng thái"]];
 function normHeader(h){
   return String(h||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").toLowerCase().trim();
 }
@@ -1208,7 +1286,10 @@ function guessEmpField(h){
   if(/mat khau|password/.test(n))return "password";
   if(/email/.test(n))return "email";
   if(/dien thoai|sdt|so dt|phone/.test(n))return "phone";
-  if(/facebook|fb/.test(n))return "facebook_url";
+  if(/facebook|fb/.test(n)){
+    if(/uid/.test(n))return "facebook_uid";
+    return "facebook_url";
+  }
   if(/trang thai/.test(n))return "status";
   return "";
 }
@@ -1500,6 +1581,193 @@ async function loadAudit(){
   }catch(e){toast(e.message);}
 }
 
+/* ================= Đối soát Facebook (v14) ================= */
+// Panel admin riêng, 3 bước kiểu FPlus. Server là nguồn duy nhất quyết
+// định map/ghi nhận; hàm thuần trong fb-scan.js chỉ dùng để đếm trước số
+// dòng dán được ở client. Ghi nhận KHÔNG tự set FINAL_VALID — minh chứng
+// tạo ra ở trạng thái Chờ xác minh, điểm chỉ tính khi chốt tháng.
+async function loadFbScan(){
+  await ensureUnits();
+  unitOptions("fbUnitFilter",true);
+  if(!$("fbMonth").value)$("fbMonth").value=monthVN();
+  await loadFbScanPosts();
+  await loadFbScanList();
+}
+async function loadFbScanPosts(){
+  const month=$("fbMonth").value||monthVN();
+  try{
+    const d=await api("/api/posts?month="+month);
+    state.fbScanPosts=d.posts||[];
+    $("fbPost").innerHTML='<option value="">— Dán link bài bên dưới —</option>'+state.fbScanPosts.map(function(p){return '<option value="'+p.id+'">'+esc(p.title)+' ('+fmtDate(p.deadline)+')</option>';}).join("");
+  }catch(e){$("fbPost").innerHTML='<option value="">(không tải được danh sách bài)</option>';}
+}
+async function loadFbScanList(){
+  try{
+    const d=await api("/api/admin/fb-scans");
+    state.fbScans=d.scans||[];
+    $("fbScanList").innerHTML=state.fbScans.map(function(s){
+      const label=s.hashtag?"#"+esc(s.hashtag)+" (hashtag)":esc(s.post_title||s.post_url||("Bài #"+(s.post_id||"?")));
+      const type={share:"Chia sẻ",like:"Thích",comment:"Bình luận"}[s.scan_type]||s.scan_type;
+      return '<div class="list-item"><div class="ic">🔍</div><div class="mid"><div class="t">'+label+' <span class="pill blue">'+type+'</span> <span class="pill grey">'+(s.source==="graph"?"Graph API":"Dán danh sách")+'</span></div><div class="s">Tháng '+esc(s.month)+' · Đã nạp '+s.raw_count+' người · Khớp '+s.matched_count+' · Tạo bởi '+(s.created_by_name||"—")+'</div></div><div><button class="btn small primary" type="button" onclick="selectFbScan('+s.id+')">Mở</button> <button class="btn small danger" type="button" onclick="deleteFbScan('+s.id+')">🗑 Xóa</button></div></div>';
+    }).join("")||'<p class="muted">Chưa có đợt quét nào.</p>';
+  }catch(e){toast(e.message);}
+}
+async function createFbScan(){
+  const types=Array.from(document.querySelectorAll(".fbType:checked")).map(function(x){return x.value;});
+  if(!types.length){$("fbCreateMsg").textContent="Tick ít nhất 1 loại tương tác (mặc định chỉ Share để tính điểm).";return;}
+  const mode=$("fbMode").value;
+  const month=$("fbMonth").value||monthVN();
+  try{
+    let firstId=null;
+    for(const t of types){
+      const body={mode:mode,month:month,scan_type:t,source:"paste",graph_post_id:$("fbGraphPostId").value.trim()};
+      if(mode==="fanpage"){
+        if($("fbPost").value)body.post_id=Number($("fbPost").value);
+        else if($("fbPostUrl").value.trim())body.post_url=$("fbPostUrl").value.trim();
+        else throw new Error("Chọn bài đã giao hoặc dán link bài trên Fanpage.");
+      }else{
+        body.hashtag=$("fbHashtag").value.trim();
+      }
+      const d=await api("/api/admin/fb-scans",{method:"POST",body:body});
+      if(!firstId)firstId=d.id;
+    }
+    $("fbCreateMsg").textContent="Đã tạo "+types.length+" đợt quét.";
+    toast("Đã tạo đợt quét");
+    await loadFbScanList();
+    if(firstId)selectFbScan(firstId);
+  }catch(e){$("fbCreateMsg").textContent=e.message;}
+}
+async function selectFbScan(id){
+  state.fbScanId=id;
+  show("fbDetailCard",true);
+  await loadFbScanDetail();
+  $("fbDetailCard").scrollIntoView({behavior:"smooth"});
+}
+async function loadFbScanDetail(){
+  const id=state.fbScanId;if(!id)return;
+  const unit=$("fbUnitFilter").value||"", filter=$("fbResultFilter").value||"all";
+  try{
+    const d=await api("/api/admin/fb-scans/"+id+"?unit_id="+unit+"&filter="+(filter==="notshared"?"all":filter));
+    state.fbScanDetail=d;
+    const s=d.scan;
+    $("fbScanSummary").innerHTML='<p><b>Đợt #'+s.id+'</b> — '+(s.hashtag?"Hashtag #"+esc(s.hashtag):esc(s.post_title||s.post_url||""))+' · '+({share:"Chia sẻ",like:"Thích",comment:"Bình luận"}[s.scan_type]||s.scan_type)+' · Tháng '+esc(s.month)+' · Nguồn: '+(s.source==="graph"?"Graph API":"Dán danh sách")+'</p>'
+      +'<p class="muted">Đã nạp: <b>'+d.counts.raw+'</b> người · Khớp: <b>'+d.counts.matched+'</b> · Chưa map được: <b>'+d.counts.unmatched+'</b> · Chưa chia sẻ: <b>'+d.counts.not_shared+'</b> CBCNV được giao</p>';
+    renderFbScanResults(d,filter);
+  }catch(e){toast(e.message);}
+}
+function renderFbScanResults(d,filter){
+  let rows=d.results||[];
+  if(filter==="notshared")rows=[];
+  $("fbResultWrap").innerHTML='<div class="tablewrap"><table><thead><tr><th>CBCNV</th><th>Đơn vị</th><th>Tên Facebook</th><th>UID</th><th>Cách khớp</th><th>Link bài chia sẻ</th><th>Kết quả</th><th></th></tr></thead><tbody>'
+    +rows.map(function(r){
+      const by=r.matched_by==="uid"?"UID":r.matched_by==="url"?"Link Facebook":r.matched_by==="name"?"Họ tên":"—";
+      const badge=r.status==="matched"?'<span class="pill ok">✓ Đã khớp</span>':'<span class="pill warn">Chưa map được</span>';
+      const reason=r.status==="matched"?"":(r.reason==="ambiguous_name"?'<br><span class="muted small">Trùng tên nhiều CBCNV — gán UID để map</span>':r.reason==="no_key"?'<br><span class="muted small">Dòng này không có tên/link/UID</span>':"");
+      const linkCell=r.post_url?'<a href="'+esc(r.post_url)+'" target="_blank" rel="noopener">Mở link</a>':'<span class="muted">— chưa có link</span><br><input id="fbLink_'+r.id+'" placeholder="Dán link bài đã chia sẻ" style="min-height:40px;margin-top:4px"><button class="btn small" type="button" onclick="setFbScanLink('+r.id+')">Lưu link</button>';
+      return '<tr><td><b>'+esc(r.employee_name||"—")+'</b><br><span class="muted">'+esc(r.employee_code||"")+'</span></td><td>'+esc(r.unit_name||"")+'</td><td>'+esc(r.fb_name||"")+'</td><td>'+esc(r.fb_uid||"")+(r.fb_profile_url?' <a href="'+esc(r.fb_profile_url)+'" target="_blank" rel="noopener">FB</a>':"")+'</td><td>'+by+'</td><td>'+linkCell+'</td><td>'+badge+reason+'</td><td style="white-space:nowrap">'+(r.status==="matched"?'<button class="btn small primary" type="button" onclick="applyFbScan(['+r.id+'])">✔ Ghi nhận</button>':"")+'</td></tr>';
+    }).join("")+'</tbody></table></div>'
+    +(rows.length?"":'<p class="muted">Chưa có kết quả nào với bộ lọc này — nạp danh sách ở Bước 2.</p>');
+  $("fbNotSharedWrap").innerHTML='<h3>Chưa chia sẻ ('+(d.not_shared||[]).length+' CBCNV được giao)</h3>'
+    +((d.not_shared||[]).map(function(a){return '<div class="list-item"><div class="ic">👤</div><div class="mid"><div class="t">'+esc(a.full_name)+' <span class="muted">('+esc(a.code)+')</span></div><div class="s">'+esc(a.unit_name||"")+'</div></div></div>';}).join("")||'<p class="muted">Không có CBCNV nào chưa chia sẻ (hoặc chưa nạp danh sách).</p>');
+}
+async function ingestFbScanPaste(){
+  const id=state.fbScanId;if(!id){toast("Chọn 1 đợt quét trước");return;}
+  const text=$("fbPaste").value;
+  if(!text.trim()){$("fbIngestMsg").textContent="Dán danh sách vào ô trước.";return;}
+  $("fbIngestMsg").textContent="Đang map và đối soát…";
+  try{
+    const d=await api("/api/admin/fb-scans/"+id+"/ingest",{method:"POST",body:{mode:"paste",text:text}});
+    $("fbIngestMsg").textContent="Đã nạp "+d.total+" người: khớp "+d.matched+" (UID "+d.by_method.uid+" / link "+d.by_method.url+" / tên "+d.by_method.name+"), chưa khớp "+d.unmatched+". Dòng chưa khớp nằm ở bảng dưới — gán UID cho CBCNV rồi nạp lại danh sách.";
+    toast("Đã đối soát: khớp "+d.matched+"/"+d.total);
+    loadFbScanDetail();loadFbScanList();
+  }catch(e){$("fbIngestMsg").textContent=e.message;}
+}
+async function ingestFbScanGraph(){
+  const id=state.fbScanId;if(!id){toast("Chọn 1 đợt quét trước");return;}
+  $("fbIngestMsg").textContent="Đang quét qua Graph API…";
+  try{
+    const d=await api("/api/admin/fb-scans/"+id+"/ingest",{method:"POST",body:{mode:"graph"}});
+    $("fbIngestMsg").textContent=d.note||("Đã quét "+d.total+" người: khớp "+d.matched+", chưa khớp "+d.unmatched+".");
+    toast("Quét Graph API xong: khớp "+d.matched+"/"+d.total);
+    loadFbScanDetail();loadFbScanList();
+  }catch(e){$("fbIngestMsg").textContent=e.message;}
+}
+async function applyFbScan(resultIds){
+  const id=state.fbScanId;if(!id){toast("Chọn 1 đợt quét trước");return;}
+  if(!confirm("Ghi nhận các dòng đã khớp thành minh chứng (trạng thái Chờ xác minh — điểm chỉ tính khi chốt tháng)?"))return;
+  try{
+    const d=await api("/api/admin/fb-scans/"+id+"/apply",{method:"POST",body:{result_ids:resultIds||null}});
+    let msg=d.message+" (đã có minh chứng: "+d.skipped_existing+" · thiếu link bài: "+d.skipped_no_link+" · không thuộc bài đích: "+d.skipped_no_target+")";
+    if(d.errors&&d.errors.length)msg+=" Lỗi: "+d.errors.slice(0,3).join(" | ");
+    $("fbApplyMsg").textContent=msg;
+    toast(d.created?"Đã tạo "+d.created+" minh chứng":"Chưa tạo được minh chứng nào");
+    loadFbScanDetail();
+  }catch(e){$("fbApplyMsg").textContent=e.message;}
+}
+async function setFbScanLink(resultId){
+  const id=state.fbScanId;if(!id)return;
+  const input=$("fbLink_"+resultId);
+  const url=input?input.value.trim():"";
+  if(!url){toast("Dán link bài đã chia sẻ vào ô.");return;}
+  try{
+    await api("/api/admin/fb-scans/"+id+"/results/"+resultId+"/link",{method:"POST",body:{post_url:url}});
+    toast("Đã lưu link bài");
+    loadFbScanDetail();
+  }catch(e){toast(e.message);}
+}
+async function deleteFbScan(id){
+  if(!confirm("Xóa đợt quét #"+id+"? Kết quả đối soát của đợt này sẽ mất (minh chứng đã ghi nhận thì giữ nguyên)."))return;
+  try{
+    await api("/api/admin/fb-scans/"+id,{method:"DELETE"});
+    toast("Đã xóa đợt quét");
+    if(state.fbScanId===id){state.fbScanId=null;show("fbDetailCard",false);}
+    loadFbScanList();
+  }catch(e){toast(e.message);}
+}
+async function exportFbScanCsv(){
+  const id=state.fbScanId;if(!id){toast("Chọn 1 đợt quét trước");return;}
+  try{
+    const res=await fetch(apiBase()+"/api/admin/fb-scans/"+id+"/export?unit_id="+($("fbUnitFilter").value||""),{headers:{Authorization:"Bearer "+token()}});
+    if(!res.ok){const d=await res.json().catch(function(){return null;});throw new Error((d&&d.error)||("Lỗi "+res.status));}
+    const blob=await res.blob();
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);a.download="fb-scan-"+id+".csv";a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);},5000);
+  }catch(e){toast(e.message);}
+}
+function exportFbScanXlsx(){
+  const d=state.fbScanDetail;
+  if(!d){toast("Chưa có kết quả để xuất");return;}
+  const s=d.scan;
+  const ws=XLSX.utils.json_to_sheet((d.results||[]).map(function(r){return {"Mã NV":r.employee_code||"","Họ tên":r.employee_name||"","Đơn vị":r.unit_name||"","Facebook UID":r.fb_uid||"","Link profile":r.fb_profile_url||"","Link bài chia sẻ":r.post_url||"","Kết quả":r.status==="matched"?"Đã chia sẻ":"Chưa map được","Cách khớp":r.matched_by==="uid"?"UID":r.matched_by==="url"?"Link Facebook":r.matched_by==="name"?"Họ tên":"","Tên Facebook":r.fb_name||""};}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Doi soat");
+  const ws2=XLSX.utils.json_to_sheet((d.not_shared||[]).map(function(a){return {"Mã NV":a.code||"","Họ tên":a.full_name||"","Đơn vị":a.unit_name||"","Kết quả":"Chưa chia sẻ"};}));
+  XLSX.utils.book_append_sheet(wb,ws2,"Chua chia se");
+  XLSX.writeFile(wb,"QNH-Social-doi-soat-facebook-"+s.id+".xlsx");
+}
+async function findFbUidEmp(){
+  const code=$("fbUidCode").value.trim();
+  if(!code){$("fbUidMsg").textContent="Nhập mã nhân viên.";return;}
+  try{
+    const d=await api("/api/employees?q="+encodeURIComponent(code));
+    const found=(d.employees||[]).find(function(e){return e.code===code;});
+    if(!found){$("fbUidMsg").textContent="Không tìm thấy CBCNV có mã "+code+".";state.fbUidEmp=null;return;}
+    state.fbUidEmp=found;
+    $("fbUidInfo").innerHTML="CBCNV: <b>"+esc(found.full_name)+"</b> ("+esc(found.code)+") · Đơn vị: "+esc(found.unit_name||"")+" · UID hiện tại: <b>"+esc(found.facebook_uid||"—")+"</b> · Link Facebook: "+(found.facebook_url?esc(found.facebook_url):"—");
+    $("fbUidMsg").textContent="";
+  }catch(e){$("fbUidMsg").textContent=e.message;}
+}
+async function saveFbUid(){
+  if(!state.fbUidEmp){$("fbUidMsg").textContent="Tìm CBCNV trước (nhập mã NV rồi bấm Tìm CBCNV).";return;}
+  try{
+    const d=await api("/api/admin/employees/"+state.fbUidEmp.id+"/facebook-uid",{method:"PUT",body:{facebook_uid:$("fbUidInput").value.trim()}});
+    $("fbUidMsg").textContent="Đã lưu Facebook UID: "+(d.facebook_uid||"(đã xóa)");
+    toast("Đã lưu Facebook UID");
+    findFbUidEmp();
+  }catch(e){$("fbUidMsg").textContent=e.message;}
+}
+
 /* ================= Gắn sự kiện ================= */
 function wire(){
   $("linkForgot").onclick=function(){switchAuthTab("forgot");show("forgotStep1",true);show("forgotStep2",false);};
@@ -1658,6 +1926,30 @@ function wire(){
     catch(e){toast(e.message);}
   };
   $("btnLoadAudit").onclick=loadAudit;
+  // Đối soát Facebook (v14)
+  $("fbMode").addEventListener("change",function(){
+    const hashtag=$("fbMode").value==="hashtag";
+    show("fbFanpageBox",!hashtag);show("fbHashtagBox",hashtag);
+  });
+  $("fbMonth").addEventListener("change",loadFbScanPosts);
+  $("btnFbCreate").onclick=createFbScan;
+  $("btnFbIngestPaste").onclick=ingestFbScanPaste;
+  $("btnFbIngestGraph").onclick=ingestFbScanGraph;
+  $("btnFbReload").onclick=loadFbScanDetail;
+  $("btnFbApplyAll").onclick=function(){applyFbScan(null);};
+  $("btnFbExportCsv").onclick=exportFbScanCsv;
+  $("btnFbExportXlsx").onclick=exportFbScanXlsx;
+  $("btnFbUidFind").onclick=findFbUidEmp;
+  $("btnFbUidSave").onclick=saveFbUid;
+  $("fbPaste").addEventListener("input",function(){
+    const el=$("fbPasteCount");
+    if(window.FbScan&&window.FbScan.fbParsePasteList){
+      try{
+        const rows=window.FbScan.fbParsePasteList($("fbPaste").value);
+        el.textContent=rows.length?("Đọc được "+rows.length+" dòng — bấm \"Map và đối soát\" để hệ thống map với danh sách CBCNV."):"";
+      }catch(e){el.textContent="";}
+    }
+  });
 }
 
 /* ================= Khởi động ================= */

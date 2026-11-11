@@ -31,6 +31,12 @@
 // Biến môi trường (wrangler secret / vars):
 //   AUTH_SECRET    (secret, bắt buộc) - khóa ký token đăng nhập
 //   ALLOWED_ORIGIN (var) - VD: https://qnh-social.pages.dev ; mặc định '*'
+//   FB_PAGE_TOKEN  (secret, tùy chọn) - Page Access Token của Fanpage nguồn,
+//     chỉ dùng cho chế độ quét qua Graph API của module Đối soát Facebook.
+//     Chưa có thì chế độ dán danh sách vẫn chạy. Cấp bằng:
+//     npx wrangler secret put FB_PAGE_TOKEN
+//   FB_PAGE_ID     (var, tùy chọn) - ID số của Fanpage, dùng để đổi link bài
+//     dạng số sang Graph post ID <page_id>_<post_id>.
 // ============================================================================
 
 const TOKEN_TTL_SECONDS = 12 * 60 * 60; // 12 giờ
@@ -38,7 +44,7 @@ const RESET_TTL_SECONDS = 60 * 60;      // 1 giờ
 const PBKDF2_ITER = 100000;
 const STANDARD_RATE = 70;               // đường chuẩn 70%
 const GREEN_THRESHOLD = 90;             // xanh >= 90%
-const WORKER_VERSION = "v13";           // hiện ở /api/health để biết Worker đang chạy bản nào
+const WORKER_VERSION = "v14";           // hiện ở /api/health để biết Worker đang chạy bản nào
 
 // ---------- Tiện ích mã hóa (giữ đúng mẫu MyMoney) ---------------------------
 function b64urlEncode(bytes) {
@@ -405,6 +411,434 @@ async function verifyShareUrl(canonical, platform, fbPostId) {
   return verifyFacebookPost(canonical, fbPostId);
 }
 
+// ============================================================================
+// MODULE Đối soát Facebook (v14) — "Tìm UID" kiểu FPlus, tích hợp QNH Social.
+// Luồng: admin tạo đợt quét cho 1 bài Fanpage (share/like/comment) hoặc 1
+// hashtag -> nạp danh sách người tương tác (dán tay, hoặc Graph API nếu có
+// Page token) -> hệ thống map 3 tầng với CBCNV -> admin ghi nhận: mỗi dòng
+// đã khớp mà chưa có minh chứng sẽ tạo 1 share_submission với
+// source='fb_scan', trạng thái Chờ xác minh (first_check) — KHÔNG tự set
+// FINAL_VALID, giữ đúng luồng xác thực 2 lớp (chỉ chốt tháng mới tính điểm).
+//
+// GIỚI HẠN THỰC TẾ — ĐỌC KỸ, ĐÃ GHI RÕ TRONG UI:
+//   - Graph API chỉ trả app-scoped / page-scoped ID, KHÔNG có UID toàn cục.
+//     Map theo UID chỉ khớp khi facebook_uid của CBCNV được ghi từ cùng
+//     một app/page (VD: lấy từ lần quét trước bằng chính Page token này).
+//   - Không tìm bài theo hashtag qua Graph API (Meta bỏ từ v2.0). Chế độ
+//     hashtag CHỈ làm bằng cách dán danh sách link bài đã dùng hashtag.
+//   - Chỉ share/like/comment CÔNG KHAI mới thấy được. Share để bạn bè hoặc
+//     riêng tư thì Meta giấu hẳn — không tool nào lấy được.
+//   - KHÔNG scrape facebook.com bằng token kiểu tool FPlus cũ. Token Page
+//     (nếu có) chỉ nằm trong secret của Worker, KHÔNG bao giờ ra frontend.
+//
+// Biến môi trường (wrangler secret / vars):
+//   FB_PAGE_TOKEN (secret, tùy chọn) — Page Access Token của Fanpage nguồn.
+//     Chưa có thì chế độ Graph API trả lỗi hướng dẫn, chế độ dán vẫn chạy.
+//     Cấp bằng: npx wrangler secret put FB_PAGE_TOKEN
+//   FB_PAGE_ID (var, tùy chọn) — ID số của Fanpage, dùng để đổi link bài
+//     dạng số sang Graph post ID <page_id>_<post_id>.
+// ============================================================================
+const FB_GRAPH_VERSION = "v25.0";
+const FB_GRAPH_MAX_ITEMS = 5000;
+const FB_GRAPH_MAX_PAGES = 50;
+
+// ===== FB-SCAN-PURE-BEGIN =====
+// Chuẩn hóa họ tên để so khớp: bỏ dấu, viết thường, gọn khoảng trắng.
+function fbNormName(s) {
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D")
+    .toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+// Trích khóa định danh profile từ link Facebook cá nhân hoặc UID trần.
+// Trả { kind: "uid" | "username", value } hoặc null.
+//   - https://www.facebook.com/profile.php?id=1000123456789 -> uid
+//   - https://www.facebook.com/nguyenvana[/posts/...]     -> username
+//   - https://www.facebook.com/people/Ten/1000123456789/  -> uid
+//   - "1000123456789" (UID trần)                           -> uid
+//   - Link nhóm / bài không có tác giả rõ / link trang chủ -> null.
+function fbExtractProfileKey(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  if (/^\d{5,}$/.test(s)) return { kind: "uid", value: s };
+  let u;
+  try {
+    let t = s;
+    if (!/^https?:\/\//i.test(t)) t = "https://" + t;
+    u = new URL(t);
+  } catch { return null; }
+  const host = u.hostname.toLowerCase();
+  if (!/(^|\.)facebook\.com$/.test(host) && !/(^|\.)fb\.com$/.test(host)) return null;
+  const idParam = u.searchParams.get("id");
+  if (idParam && /^\d{5,}$/.test(idParam)) return { kind: "uid", value: idParam };
+  const segs = u.pathname.split("/").filter(Boolean).map((x) => { try { return decodeURIComponent(x); } catch { return x; } });
+  if (!segs.length) return null;
+  if (segs[0] === "people" && segs.length >= 3 && /^\d{5,}$/.test(segs[segs.length - 1])) {
+    return { kind: "uid", value: segs[segs.length - 1] };
+  }
+  // Các path hệ thống không phải profile cá nhân.
+  const RESERVED = new Set(["posts", "videos", "video", "reel", "reels", "photo", "photos",
+    "permalink", "story", "stories", "groups", "events", "watch", "share", "people",
+    "marketplace", "gaming", "fundraisers", "pages", "profile.php", "login", "search",
+    "notifications", "messages", "settings", "help", "ads", "business"]);
+  if (RESERVED.has(segs[0].toLowerCase())) return null;
+  const name = segs[0];
+  if (!/^[A-Za-z0-9._-]{3,50}$/.test(name)) return null;
+  return { kind: "username", value: name.toLowerCase() };
+}
+
+// Chuẩn hóa link profile về dạng https://facebook.com/<khóa> (để so khớp).
+// UID số -> https://facebook.com/profile.php?id=<uid>; username -> /<username>.
+function fbNormalizeProfileUrl(raw) {
+  const k = fbExtractProfileKey(raw);
+  if (!k) return null;
+  return k.kind === "uid"
+    ? "https://facebook.com/profile.php?id=" + k.value
+    : "https://facebook.com/" + k.value;
+}
+
+// Trích Post ID (số hoặc pfbid) từ URL bài Facebook.
+function fbExtractPostId(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  const m = s.match(/\/(?:posts|videos|reel|reels|photo|photos|permalink|story)\/(pfbid[0-9A-Za-z]{10,}|\d+)/)
+    || s.match(/\/(pfbid[0-9A-Za-z]{10,})\/?(?:[?#]|$)/)
+    || s.match(/[?&](?:fbid|story_fbid)=(pfbid[0-9A-Za-z]{10,}|\d+)/);
+  return m ? m[1] : null;
+}
+
+// Trích tác giả từ link BÀI ĐĂNG cá nhân (chế độ hashtag).
+// Trả { authorKey, postId, postUrl } hoặc null.
+//   - facebook.com/nguyenvana/posts/123... -> author nguyenvana
+//   - facebook.com/profile.php?id=10001... (kèm /posts/...) -> author uid
+//   - Link nhóm / share rút gọn / bài của Fanpage -> vẫn trích được author
+//     là username đầu path (đó chính là tên Fanpage) — map sẽ quyết định.
+function fbExtractPostAuthor(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  let u;
+  try {
+    let t = s;
+    if (!/^https?:\/\//i.test(t)) t = "https://" + t;
+    u = new URL(t);
+  } catch { return null; }
+  const host = u.hostname.toLowerCase();
+  if (!/(^|\.)facebook\.com$/.test(host) && !/(^|\.)fb\.com$/.test(host)) return null;
+  const postId = fbExtractPostId(s);
+  if (!postId) return null;
+  // Bài trong nhóm: không có tác giả cá nhân xác định từ URL.
+  if (/\/groups\/\d+\/permalink\//.test(u.pathname)) return null;
+  const idParam = u.searchParams.get("id");
+  if (idParam && /^\d{5,}$/.test(idParam)) {
+    return { authorKey: { kind: "uid", value: idParam }, postId, postUrl: s };
+  }
+  const segs = u.pathname.split("/").filter(Boolean);
+  if (!segs.length) return null;
+  if (segs[0] === "share") return null; // link /share/p/... không lộ tác giả
+  const key = fbExtractProfileKey("https://facebook.com/" + segs[0]);
+  if (!key) return null;
+  return { authorKey: key, postId, postUrl: s };
+}
+
+// Phân tích danh sách dán (chế độ paste — giống cách FPlus nhận UID).
+// Mỗi dòng 1 người, chấp nhận nhiều định dạng:
+//   "Nguyễn Văn A https://www.facebook.com/nguyenvana"
+//   "Nguyễn Văn A<TAB>https://www.facebook.com/profile.php?id=10001"
+//   "https://www.facebook.com/nguyenvana/posts/pfbid... (link bài đã chia sẻ)"
+//   "Tên, https://www.facebook.com/username"
+//   "1000123456789" (UID trần) / "Tên | 1000123456789"
+//   "https://www.facebook.com/username" (chỉ link)
+// Trả [{ line, name, profile_url, fb_uid, post_url, raw }].
+//   - profile_url: link profile chuẩn hóa (nếu có).
+//   - fb_uid: UID số (nếu trích được — từ profile.php?id=, /people/.../id,
+//     UID trần, hoặc author dạng số của link bài).
+//   - post_url: link bài đã chia sẻ (nếu dòng đó là link bài) — dùng để
+//     tạo minh chứng khi ghi nhận; không có thì ghi nhận sẽ bị chặn lại
+//     và báo "thiếu link bài" thay vì bịa URL.
+function fbParsePasteList(text) {
+  const out = [];
+  const lines = String(text || "").split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+    if (!line || line.startsWith("#")) continue;
+    // Bỏ dấu ngoặc kép bao quanh (dán từ CSV/Excel).
+    line = line.replace(/^"+|"+$/g, "").trim();
+    if (!line) continue;
+    const row = { line: i + 1, name: "", profile_url: null, fb_uid: null, post_url: null, raw: lines[i].trim() };
+    const urlMatch = line.match(/https?:\/\/[^\s,;|]+/);
+    let rest = line;
+    if (urlMatch) {
+      const url = urlMatch[0].replace(/[),.]+$/, "");
+      rest = (line.slice(0, urlMatch.index) + " " + line.slice(urlMatch.index + urlMatch[0].length)).trim();
+      if (fbExtractPostId(url)) {
+        row.post_url = url;
+        const author = fbExtractPostAuthor(url);
+        if (author) {
+          if (author.authorKey.kind === "uid") row.fb_uid = author.authorKey.value;
+          else row.profile_url = fbNormalizeProfileUrl("https://facebook.com/" + author.authorKey.value);
+        }
+      } else {
+        const key = fbExtractProfileKey(url);
+        if (key) {
+          row.profile_url = fbNormalizeProfileUrl(url);
+          if (key.kind === "uid") row.fb_uid = key.value;
+        }
+      }
+    }
+    // UID trần còn lại trong dòng (sau khi đã tách URL ra).
+    const uidMatch = rest.match(/(?:^|[\s,;|])(\d{6,})(?=$|[\s,;|])/);
+    if (uidMatch && !row.fb_uid) row.fb_uid = uidMatch[1];
+    if (uidMatch) rest = rest.replace(uidMatch[1], " ");
+    // Phần còn lại là tên: bỏ dấu phân cách, dấu ngoặc kép thừa, gọn khoảng trắng.
+    const name = rest.replace(/["'`]/g, "").replace(/[\s,;|\t\-–—]+/g, " ").trim();
+    // Tên chỉ hợp lệ khi có chữ cái; nếu chỉ còn số/ký tự lạ thì bỏ.
+    if (/[A-Za-zÀ-ỹ]/.test(name)) row.name = name.replace(/\s+/g, " ");
+    // Dòng chỉ có UID trần mà không có tên/link: vẫn giữ để map theo UID.
+    if (!row.name && !row.profile_url && !row.fb_uid && !row.post_url) continue;
+    out.push(row);
+  }
+  return out;
+}
+
+// Map danh sách người tương tác với danh sách CBCNV — 3 tầng ưu tiên:
+//   (a) facebook_uid khớp chính xác (UID số hoặc username đã gán).
+//   (b) facebook_url chuẩn hóa khớp (username hoặc profile.php?id=).
+//   (c) họ tên chuẩn hóa không dấu/viết thường — CHỈ khi duy nhất 1 CBCNV
+//       trùng tên; trùng tên nhiều người -> không khớp (lý do ambiguous_name),
+//       không tự đoán.
+// employees: [{ id, code, full_name, facebook_url, facebook_uid }]
+// interactors: [{ name, profile_url, fb_uid, post_url }]
+// Trả { results: [{ interactor, employee_id, employee, matched_by, status,
+//   reason }], stats: { total, matched, unmatched, by_method } }.
+function fbMapInteractors(employees, interactors) {
+  const uidIndex = new Map();   // khóa UID đã gán -> employee
+  const keyIndex = new Map();   // khóa profile (từ facebook_url) -> employee
+  const nameIndex = new Map();  // tên chuẩn hóa -> [employee]
+  for (const e of employees || []) {
+    const uidKey = String(e.facebook_uid || "").trim().toLowerCase();
+    if (uidKey && !uidIndex.has(uidKey)) uidIndex.set(uidKey, e);
+    const pk = fbExtractProfileKey(e.facebook_url || "");
+    if (pk) {
+      const k = pk.kind + ":" + pk.value;
+      if (!keyIndex.has(k)) keyIndex.set(k, e);
+      // UID trong facebook_url (profile.php?id=) cũng cho phép khớp tầng (a).
+      if (pk.kind === "uid" && !uidIndex.has(pk.value)) uidIndex.set(pk.value, e);
+    }
+    const nk = fbNormName(e.full_name || "");
+    if (nk) {
+      if (!nameIndex.has(nk)) nameIndex.set(nk, []);
+      nameIndex.get(nk).push(e);
+    }
+  }
+  const results = [];
+  const stats = { total: (interactors || []).length, matched: 0, unmatched: 0, by_method: { uid: 0, url: 0, name: 0 } };
+  for (const it of interactors || []) {
+    const r = { interactor: it, employee_id: null, employee: null, matched_by: null, status: "unmatched", reason: "" };
+    const uidKey = String(it.fb_uid || "").trim().toLowerCase();
+    const pk = fbExtractProfileKey(it.profile_url || "");
+    let emp = null, by = null;
+    // Tầng (a): UID khớp chính xác.
+    if (uidKey && uidIndex.has(uidKey)) { emp = uidIndex.get(uidKey); by = "uid"; }
+    else if (pk && pk.kind === "uid" && uidIndex.has(pk.value)) { emp = uidIndex.get(pk.value); by = "uid"; }
+    // Tầng (b): link profile chuẩn hóa khớp.
+    if (!emp && pk && keyIndex.has(pk.kind + ":" + pk.value)) { emp = keyIndex.get(pk.kind + ":" + pk.value); by = "url"; }
+    if (!emp && uidKey && keyIndex.has("uid:" + uidKey)) { emp = keyIndex.get("uid:" + uidKey); by = "url"; }
+    // Tầng (c): họ tên chuẩn hóa — chỉ khi duy nhất.
+    if (!emp && it.name) {
+      const nk = fbNormName(it.name);
+      const cands = nameIndex.get(nk) || [];
+      if (cands.length === 1) { emp = cands[0]; by = "name"; }
+      else if (cands.length > 1) { r.reason = "ambiguous_name"; }
+    }
+    if (emp) {
+      r.employee_id = emp.id; r.employee = emp; r.matched_by = by; r.status = "matched";
+      stats.matched++; stats.by_method[by]++;
+    } else {
+      stats.unmatched++;
+      if (!r.reason) r.reason = (!uidKey && !pk && !it.name) ? "no_key" : "no_match";
+    }
+    results.push(r);
+  }
+  return { results, stats };
+}
+// ===== FB-SCAN-PURE-END =====
+
+// ---------- Migration + truy vấn dùng chung (Đối soát Facebook) --------------
+async function ensureFbScanSchema(env) {
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS fb_scans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id INTEGER REFERENCES posts(id) ON DELETE SET NULL,
+      post_url TEXT NOT NULL DEFAULT '',
+      hashtag TEXT NOT NULL DEFAULT '',
+      scan_type TEXT NOT NULL DEFAULT 'share' CHECK (scan_type IN ('share','like','comment')),
+      source TEXT NOT NULL DEFAULT 'paste' CHECK (source IN ('graph','paste')),
+      month TEXT NOT NULL,
+      graph_post_id TEXT NOT NULL DEFAULT '',
+      title TEXT NOT NULL DEFAULT '',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      raw_count INTEGER NOT NULL DEFAULT 0,
+      matched_count INTEGER NOT NULL DEFAULT 0)`).run();
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS fb_scan_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      scan_id INTEGER NOT NULL REFERENCES fb_scans(id) ON DELETE CASCADE,
+      employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+      fb_uid TEXT NOT NULL DEFAULT '',
+      fb_name TEXT NOT NULL DEFAULT '',
+      fb_profile_url TEXT NOT NULL DEFAULT '',
+      post_url TEXT NOT NULL DEFAULT '',
+      matched_by TEXT CHECK (matched_by IN ('uid','url','name')),
+      status TEXT NOT NULL DEFAULT 'unmatched' CHECK (status IN ('matched','unmatched')),
+      reason TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`).run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_fbscan_post ON fb_scans(post_id)").run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_fbresult_scan ON fb_scan_results(scan_id)").run();
+    await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_fbresult_emp ON fb_scan_results(employee_id)").run();
+    // D1 cũ: thêm cột facebook_uid + cột nguồn gốc minh chứng. Có cờ
+    // settings để không chạy lại; ALTER an toàn nhiều lần (kiểm tra sql).
+    const flag = await env.DB.prepare("SELECT value FROM settings WHERE key='migrated_fb_scan_v1'").first();
+    if (!flag) {
+      const empSql = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='employees'").first();
+      if (empSql && empSql.sql && !empSql.sql.includes("facebook_uid")) {
+        await env.DB.prepare("ALTER TABLE employees ADD COLUMN facebook_uid TEXT DEFAULT ''").run();
+      }
+      const subSql = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='share_submissions'").first();
+      if (subSql && subSql.sql) {
+        if (!subSql.sql.includes("fb_scan_id")) {
+          await env.DB.prepare("ALTER TABLE share_submissions ADD COLUMN fb_scan_id INTEGER REFERENCES fb_scans(id) ON DELETE SET NULL").run();
+        }
+        if (!subSql.sql.includes("source TEXT")) {
+          await env.DB.prepare("ALTER TABLE share_submissions ADD COLUMN source TEXT NOT NULL DEFAULT 'self'").run();
+        }
+      }
+      await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_emp_fb_uid ON employees(facebook_uid) WHERE facebook_uid IS NOT NULL AND facebook_uid != ''").run();
+      await env.DB.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('migrated_fb_scan_v1','1')").run();
+    }
+  } catch (e) { console.error("ensureFbScanSchema failed:", e); }
+}
+// Toàn bộ CBCNV đang làm việc kèm UID/link Facebook (để map 3 tầng).
+async function fbScanEmployees(env) {
+  return (await env.DB.prepare(
+    `SELECT e.id, e.code, e.full_name, e.unit_id, u.name AS unit_name,
+            e.facebook_url, COALESCE(e.facebook_uid, '') AS facebook_uid
+     FROM employees e LEFT JOIN units u ON u.id = e.unit_id
+     WHERE e.status = 'working' ORDER BY u.sort_order, e.full_name LIMIT 5000`
+  ).all()).results || [];
+}
+// Gọi Graph API: KHÔNG bao giờ ghi token vào log hay trả về client.
+async function fbGraphFetch(env, path, params) {
+  const token = env.FB_PAGE_TOKEN;
+  if (!token) {
+    return { ok: false, error: "FB_PAGE_TOKEN chưa cấu hình — chế độ Graph API chưa chạy được. Admin vào Cloudflare Dashboard → Worker qnh-social-api → Settings → Variables → Add secret FB_PAGE_TOKEN (Page Access Token của Fanpage), rồi thử lại. Trong lúc chờ, dùng chế độ dán danh sách bên dưới — không cần token." };
+  }
+  const qs = new URLSearchParams({ ...params, access_token: token });
+  return fbGraphFetchUrl("https://graph.facebook.com/" + FB_GRAPH_VERSION + path + "?" + qs.toString());
+}
+async function fbGraphFetchUrl(url) {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    const res = await fetch(url, { headers: { "Accept": "application/json" }, signal: ctrl.signal });
+    clearTimeout(t);
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const msg = data && data.error && data.error.message ? data.error.message : ("HTTP " + res.status);
+      return { ok: false, error: "Graph API lỗi " + res.status + ": " + msg + " (kiểm tra Page token còn hạn và có quyền pages_read_engagement)" };
+    }
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: "Lỗi mạng khi gọi Graph API: " + String(e && e.message || e) };
+  }
+}
+// Đổi bài Fanpage sang Graph post ID.
+//   - Admin nhập sẵn graph_post_id (dạng <page_id>_<post_id>) thì dùng luôn.
+//   - Link bài dạng số + có FB_PAGE_ID -> <page_id>_<post_id>.
+//   - Link pfbid: KHÔNG đổi được sang Graph post ID nếu không có token
+//     tra cứu — trả lỗi rõ ràng, hướng dẫn dùng chế độ dán danh sách.
+function fbResolveGraphPostId(env, scan, post) {
+  if (scan.graph_post_id && String(scan.graph_post_id).trim()) return { ok: true, id: String(scan.graph_post_id).trim() };
+  const link = (post && post.post_url) || scan.post_url || "";
+  const canon = canonicalizeShareUrl(link);
+  if (!canon.ok) return { ok: false, error: "Link bài gốc không hợp lệ: " + (canon.message || "") };
+  const pid = canon.fb_post_id;
+  if (!pid) return { ok: false, error: "Không trích được ID bài từ link — dán link bài dạng .../posts/123... hoặc .../posts/pfbid... (xem ghi chú pfbid bên dưới)." };
+  if (/^\d+$/.test(pid)) {
+    if (!env.FB_PAGE_ID) return { ok: false, error: "Chưa cấu hình FB_PAGE_ID nên không đổi link bài dạng số sang Graph post ID được. Thêm biến FB_PAGE_ID (ID số của Fanpage) trong Cloudflare Dashboard → Worker → Settings → Variables, hoặc nhập Graph post ID dạng <page_id>_<post_id> vào ô 'Graph post ID' khi tạo đợt quét." };
+    return { ok: true, id: env.FB_PAGE_ID + "_" + pid };
+  }
+  return { ok: false, error: "Link bài dạng pfbid không đổi được sang Graph post ID (Meta không cho đổi ngược pfbid nếu không tra cứu qua Page). Cách làm: nhập Graph post ID dạng <page_id>_<post_id> vào ô 'Graph post ID' khi tạo đợt quét (lấy trong Meta Business Suite → Bài viết → ID bài), hoặc dùng chế độ dán danh sách — không cần token." };
+}
+// Nạp danh sách người tương tác vào 1 đợt quét: map 3 tầng rồi lưu kết quả
+// (xóa kết quả cũ của đợt quét này), cập nhật raw_count/matched_count.
+async function fbIngestScan(env, scan, interactors, source) {
+  const emps = await fbScanEmployees(env);
+  const { results, stats } = fbMapInteractors(emps, interactors);
+  await env.DB.prepare("DELETE FROM fb_scan_results WHERE scan_id = ?").bind(scan.id).run();
+  const stmts = results.map((r) => env.DB.prepare(
+    "INSERT INTO fb_scan_results (scan_id, employee_id, fb_uid, fb_name, fb_profile_url, post_url, matched_by, status, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).bind(scan.id, r.employee_id, String(r.interactor.fb_uid || ""), String(r.interactor.name || ""),
+    String(r.interactor.profile_url || ""), String(r.interactor.post_url || ""),
+    r.matched_by, r.status, r.reason || ""));
+  for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100));
+  await env.DB.prepare("UPDATE fb_scans SET raw_count = ?, matched_count = ?, source = ?, updated_at = ? WHERE id = ?")
+    .bind(stats.total, stats.matched, source, nowIso(), scan.id).run();
+  return stats;
+}
+// Các bài là "đích" ghi nhận của 1 đợt quét.
+//   - Chế độ Fanpage: đúng bài đã chọn.
+//   - Chế độ hashtag: các bài trong tháng của đợt quét mà trường hashtags
+//     có chứa hashtag đó (so khớp không phân biệt hoa/thường, có/không có #).
+async function fbScanTargetPosts(env, scan) {
+  if (scan.post_id) {
+    const p = await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(scan.post_id).first();
+    return p ? [p] : [];
+  }
+  if (scan.hashtag) {
+    const want = String(scan.hashtag).replace(/^#+/, "").toLowerCase();
+    const posts = (await env.DB.prepare("SELECT * FROM posts WHERE month = ?").bind(scan.month).all()).results || [];
+    return posts.filter((p) => String(p.hashtags || "").toLowerCase().replace(/#/g, " ").split(/[\s,;]+/).includes(want));
+  }
+  return [];
+}
+// Chi tiết 1 đợt quét: kết quả map + danh sách "chưa chia sẻ" (CBCNV được
+// giao bài đích nhưng không có trong danh sách đã khớp). Lọc theo đơn vị
+// và loại kết quả ở phía server (dữ liệu nhỏ, lọc JS cho đơn giản).
+async function fbLoadScanDetail(env, scan, unitId, resultFilter) {
+  let results = (await env.DB.prepare(
+    `SELECT r.*, e.code AS employee_code, e.full_name AS employee_name, e.unit_id, u.name AS unit_name
+     FROM fb_scan_results r LEFT JOIN employees e ON e.id = r.employee_id
+     LEFT JOIN units u ON u.id = e.unit_id WHERE r.scan_id = ?
+     ORDER BY CASE WHEN r.status = 'matched' THEN 0 ELSE 1 END, r.fb_name, r.id`
+  ).bind(scan.id).all()).results || [];
+  const matchedIds = new Set(results.filter((r) => r.employee_id).map((r) => r.employee_id));
+  let notShared = [];
+  const targets = await fbScanTargetPosts(env, scan);
+  if (targets.length) {
+    const postIds = targets.map((p) => p.id);
+    const assigned = (await env.DB.prepare(
+      `SELECT DISTINCT a.employee_id, e.code, e.full_name, e.unit_id, u.name AS unit_name
+       FROM assignments a JOIN employees e ON e.id = a.employee_id
+       LEFT JOIN units u ON u.id = e.unit_id
+       WHERE a.post_id IN (${postIds.map(() => "?").join(",")}) AND e.status = 'working'`
+    ).bind(...postIds).all()).results || [];
+    notShared = assigned.filter((a) => !matchedIds.has(a.employee_id));
+  }
+  if (unitId) {
+    results = results.filter((r) => String(r.unit_id || "") === String(unitId));
+    notShared = notShared.filter((a) => String(a.unit_id || "") === String(unitId));
+  }
+  if (resultFilter === "matched") results = results.filter((r) => r.status === "matched");
+  else if (resultFilter === "unmatched") results = results.filter((r) => r.status === "unmatched");
+  return { results, not_shared: notShared, targets,
+    counts: { raw: scan.raw_count || 0, matched: scan.matched_count || 0,
+      unmatched: (scan.raw_count || 0) - (scan.matched_count || 0), not_shared: notShared.length } };
+}
+function fbCsvEscape(v) {
+  const s = String(v == null ? "" : v);
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
 // ---------- Auth / phân quyền -------------------------------------------------
 async function requireAuth(request, env) {
   const m = (request.headers.get("Authorization") || "").match(/^Bearer\s+(.+)$/i);
@@ -612,6 +1046,7 @@ async function ensureSchema(env) {
   await ensureSecurityQuestions(env);
   await ensureSubAdminRole(env);
   await ensureMustChangePassword(env);
+  await ensureFbScanSchema(env);
   try {
     await env.DB.prepare(`CREATE TABLE IF NOT EXISTS monthly_locks (
       month TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'locked',
@@ -1023,14 +1458,14 @@ async function fetchHandler(request, env) {
         if (mode === "update") {
           const ex = await env.DB.prepare("SELECT id FROM employees WHERE code = ?").bind(code).first();
           if (ex) {
-            stmts.push(env.DB.prepare("UPDATE employees SET full_name=?, unit_id=?, title=?, group_name=?, email=?, phone=?, facebook_url=?, status=?, updated_at=? WHERE id=?")
-              .bind(name, unitId || 10, String(r.title || ""), String(r.group_name || ""), String(r.email || ""), String(r.phone || ""), String(r.facebook_url || ""), r.status || "working", nowIso(), ex.id));
+            stmts.push(env.DB.prepare("UPDATE employees SET full_name=?, unit_id=?, title=?, group_name=?, email=?, phone=?, facebook_url=?, facebook_uid=?, status=?, updated_at=? WHERE id=?")
+              .bind(name, unitId || 10, String(r.title || ""), String(r.group_name || ""), String(r.email || ""), String(r.phone || ""), String(r.facebook_url || ""), String(r.facebook_uid || ""), r.status || "working", nowIso(), ex.id));
             imported++; continue;
           }
         }
         stmts.push(env.DB.prepare(
-          "INSERT OR IGNORE INTO employees (code, full_name, unit_id, title, group_name, email, phone, facebook_url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        ).bind(code, name, unitId || 10, String(r.title || ""), String(r.group_name || ""), String(r.email || ""), String(r.phone || ""), String(r.facebook_url || ""), r.status || "working"));
+          "INSERT OR IGNORE INTO employees (code, full_name, unit_id, title, group_name, email, phone, facebook_url, facebook_uid, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ).bind(code, name, unitId || 10, String(r.title || ""), String(r.group_name || ""), String(r.email || ""), String(r.phone || ""), String(r.facebook_url || ""), String(r.facebook_uid || ""), r.status || "working"));
         imported++;
       }
       if (stmts.length) await env.DB.batch(stmts);
@@ -2048,7 +2483,7 @@ async function fetchHandler(request, env) {
         let unitIds = null;
         if (unitId) unitIds = await unitSubtreeIds(env, Number(unitId));
         let sql = `SELECT e.id AS employee_id, e.code, e.full_name, e.unit_id, u.name AS unit_name,
-          e.title, e.group_name, e.email, e.phone, e.facebook_url, e.status,
+          e.title, e.group_name, e.email, e.phone, e.facebook_url, e.facebook_uid, e.status,
           us.id AS user_id, us.email AS login_email, us.role AS user_role, us.status AS user_status
           FROM employees e LEFT JOIN units u ON u.id = e.unit_id
           LEFT JOIN users us ON us.employee_id = e.id WHERE 1=1`;
@@ -2107,9 +2542,9 @@ async function fetchHandler(request, env) {
         try {
           if (code) {
             const ins = await env.DB.prepare(
-              "INSERT INTO employees (code, full_name, unit_id, title, group_name, email, phone, facebook_url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+              "INSERT INTO employees (code, full_name, unit_id, title, group_name, email, phone, facebook_url, facebook_uid, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             ).bind(code, fullName, unitId, String(b.title || ""), String(b.group_name || ""),
-              String(b.email || ""), String(b.phone || ""), String(b.facebook_url || ""), b.status || "working").run();
+              String(b.email || ""), String(b.phone || ""), String(b.facebook_url || ""), String(b.facebook_uid || ""), b.status || "working").run();
             empId = ins.meta.last_row_id;
           }
           const uins = await env.DB.prepare(
@@ -2171,11 +2606,11 @@ async function fetchHandler(request, env) {
         }
         const before = { ...target };
         await env.DB.prepare(
-          "UPDATE employees SET full_name=?, unit_id=?, title=?, group_name=?, email=?, phone=?, facebook_url=?, status=?, updated_at=? WHERE id=?"
+          "UPDATE employees SET full_name=?, unit_id=?, title=?, group_name=?, email=?, phone=?, facebook_url=?, facebook_uid=?, status=?, updated_at=? WHERE id=?"
         ).bind(String(b.full_name ?? target.full_name).trim(),
           b.unit_id ?? target.unit_id, String(b.title ?? target.title ?? ""), String(b.group_name ?? target.group_name ?? ""),
           String(b.email ?? target.email ?? ""), String(b.phone ?? target.phone ?? ""),
-          String(b.facebook_url ?? target.facebook_url ?? ""), b.status || target.status, nowIso(), target.id).run();
+          String(b.facebook_url ?? target.facebook_url ?? ""), String(b.facebook_uid ?? target.facebook_uid ?? ""), b.status || target.status, nowIso(), target.id).run();
         if (linked) {
           const userBefore = { ...linked }; delete userBefore.password_hash;
           await env.DB.prepare("UPDATE users SET full_name=?, email=?, role=?, updated_at=? WHERE id=?")
@@ -2343,6 +2778,279 @@ async function fetchHandler(request, env) {
         await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(target.id).run();
         await audit(env, uid, "delete_user", "users:" + target.id, "Xóa tài khoản " + target.email, { email: target.email, role: target.role }, null);
         return json(env, { ok: true });
+      }
+      // ================= Đối soát Facebook (v14) =================
+      // Panel admin riêng "Đối soát Facebook". Chỉ admin (mọi loại) — xem
+      // trong admin block này đã kiểm tra isAdmin ở đầu.
+      // Tạo đợt quét: chọn bài đã giao HOẶC dán link bài Fanpage (chế độ
+      // Fanpage), hoặc nhập hashtag (chế độ bài đăng trực tiếp).
+      if (path === "/api/admin/fb-scans" && request.method === "POST") {
+        const b = await readBody(request);
+        const scanType = ["share", "like", "comment"].includes(b.scan_type) ? b.scan_type : "share";
+        const mode = b.mode === "hashtag" ? "hashtag" : "fanpage";
+        const month = validMonth(b.month) ? b.month : new Date().toISOString().slice(0, 7);
+        const source = b.source === "graph" ? "graph" : "paste";
+        let postId = null, postUrl = "", hashtag = "";
+        if (mode === "fanpage") {
+          if (b.post_id) {
+            const post = await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(b.post_id).first();
+            if (!post) return err(env, "Không tìm thấy bài viết", 404);
+            if (await monthLocked(env, post.month)) return err(env, "Tháng " + post.month + " đã khóa — không tạo đợt quét cho bài này", 403);
+            postId = post.id; postUrl = post.post_url || "";
+          } else if (b.post_url) {
+            const canon = canonicalizeShareUrl(String(b.post_url).trim());
+            if (!canon.ok) return err(env, "Link bài không hợp lệ: " + (canon.message || ""), 422);
+            if (canon.platform !== "facebook") return err(env, "Chế độ Fanpage chỉ nhận link bài Facebook", 422);
+            postUrl = String(b.post_url).trim();
+          } else {
+            return err(env, "Chọn bài đã giao hoặc dán link bài trên Fanpage", 422);
+          }
+        } else {
+          hashtag = String(b.hashtag || "").trim().replace(/^#+/, "");
+          if (!hashtag || !/^[A-Za-z0-9_]+$/.test(hashtag)) return err(env, "Nhập hashtag hợp lệ (VD: LoveVNPT — không dấu cách, không có # ở đầu cũng được)", 422);
+        }
+        const ins = await env.DB.prepare(
+          "INSERT INTO fb_scans (post_id, post_url, hashtag, scan_type, source, month, graph_post_id, title, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ).bind(postId, postUrl, hashtag, scanType, source, month,
+          String(b.graph_post_id || "").trim(), String(b.title || ""), uid).run();
+        await audit(env, uid, "fb_scan_create", "fb_scans:" + ins.meta.last_row_id,
+          "Tạo đợt đối soát Facebook (" + (mode === "hashtag" ? "hashtag #" + hashtag : "bài #" + (postId || "link ngoài")) + ", " + scanType + ")",
+          null, { mode, post_id: postId, hashtag, scan_type: scanType, month });
+        return json(env, { ok: true, id: ins.meta.last_row_id }, 201);
+      }
+      if (path === "/api/admin/fb-scans" && request.method === "GET") {
+        const rows = (await env.DB.prepare(
+          `SELECT s.*, p.title AS post_title, p.month AS post_month,
+                  u.full_name AS created_by_name
+           FROM fb_scans s LEFT JOIN posts p ON p.id = s.post_id
+           LEFT JOIN users u ON u.id = s.created_by
+           ORDER BY s.id DESC LIMIT 100`
+        ).all()).results || [];
+        return json(env, { ok: true, scans: rows });
+      }
+      const fbScanMatch = path.match(/^\/api\/admin\/fb-scans\/(\d+)$/);
+      if (fbScanMatch && request.method === "GET") {
+        const scan = await env.DB.prepare(
+          `SELECT s.*, p.title AS post_title, p.post_url AS origin_url, p.month AS post_month
+           FROM fb_scans s LEFT JOIN posts p ON p.id = s.post_id WHERE s.id = ?`
+        ).bind(fbScanMatch[1]).first();
+        if (!scan) return err(env, "Không tìm thấy đợt quét", 404);
+        const unitId = url.searchParams.get("unit_id") || "";
+        const resultFilter = url.searchParams.get("filter") || "all";
+        const detail = await fbLoadScanDetail(env, scan, unitId, resultFilter);
+        return json(env, { ok: true, scan, ...detail });
+      }
+      if (fbScanMatch && request.method === "DELETE") {
+        const scan = await env.DB.prepare("SELECT * FROM fb_scans WHERE id = ?").bind(fbScanMatch[1]).first();
+        if (!scan) return err(env, "Không tìm thấy đợt quét", 404);
+        await env.DB.batch([
+          env.DB.prepare("DELETE FROM fb_scan_results WHERE scan_id = ?").bind(scan.id),
+          env.DB.prepare("DELETE FROM fb_scans WHERE id = ?").bind(scan.id),
+        ]);
+        await audit(env, uid, "fb_scan_delete", "fb_scans:" + scan.id, "Xóa đợt đối soát Facebook #" + scan.id, scan, null);
+        return json(env, { ok: true });
+      }
+      // Nạp danh sách người tương tác vào đợt quét.
+      //   mode=paste: body { text } — mỗi dòng 1 người (tên + link/UID,
+      //     hoặc link bài đã chia sẻ). Chạy được ngay, KHÔNG cần token.
+      //   mode=graph: gọi Graph API v25 bằng FB_PAGE_TOKEN (secret của
+      //     Worker). Chưa cấu hình token thì trả lỗi hướng dẫn rõ ràng.
+      const fbIngestMatch = path.match(/^\/api\/admin\/fb-scans\/(\d+)\/ingest$/);
+      if (fbIngestMatch && request.method === "POST") {
+        const scan = await env.DB.prepare("SELECT * FROM fb_scans WHERE id = ?").bind(fbIngestMatch[1]).first();
+        if (!scan) return err(env, "Không tìm thấy đợt quét", 404);
+        const b = await readBody(request);
+        const mode = b.mode === "graph" ? "graph" : "paste";
+        let interactors = [];
+        if (mode === "paste") {
+          const text = String(b.text || "");
+          if (!text.trim()) return err(env, "Dán danh sách người tương tác vào ô (mỗi dòng 1 người: tên + link Facebook/UID, hoặc link bài đã chia sẻ)", 422);
+          if (text.length > 200000) return err(env, "Danh sách dán quá dài (tối đa 200.000 ký tự) — chia nhỏ thành nhiều đợt", 422);
+          interactors = fbParsePasteList(text);
+          if (!interactors.length) return err(env, "Không đọc được dòng nào — mỗi dòng cần có tên, link Facebook, UID hoặc link bài đã chia sẻ", 422);
+          const stats = await fbIngestScan(env, scan, interactors, "paste");
+          await audit(env, uid, "fb_scan_ingest", "fb_scans:" + scan.id,
+            `Nạp danh sách dán cho đợt #${scan.id}: ${stats.total} người, khớp ${stats.matched} (uid ${stats.by_method.uid} / url ${stats.by_method.url} / tên ${stats.by_method.name}), chưa khớp ${stats.unmatched}`,
+            null, stats);
+          return json(env, { ok: true, source: "paste", ...stats });
+        }
+        // ---- Chế độ Graph API ----
+        if (scan.hashtag) {
+          return err(env, "Chế độ hashtag không quét được qua Graph API (Meta bỏ tìm bài theo hashtag từ v2.0) — dùng chế độ dán danh sách: dán các link bài đã dùng hashtag, hệ thống trích tác giả từng link rồi map", 422);
+        }
+        const post = scan.post_id
+          ? await env.DB.prepare("SELECT * FROM posts WHERE id = ?").bind(scan.post_id).first() : null;
+        const resolved = fbResolveGraphPostId(env, scan, post);
+        if (!resolved.ok) return err(env, resolved.error, 422);
+        const edge = scan.scan_type === "like" ? "reactions" : scan.scan_type === "comment" ? "comments" : "sharedposts";
+        const fields = scan.scan_type === "like" ? "id,name,type"
+          : scan.scan_type === "comment" ? "from{id,name},message,created_time" : "from{id,name},created_time";
+        let next = null;
+        const first = await fbGraphFetch(env, "/" + encodeURIComponent(resolved.id) + "/" + edge, { fields, limit: "100" });
+        if (!first.ok) return err(env, first.error, 422);
+        let page = first.data, pages = 1;
+        while (page && Array.isArray(page.data)) {
+          for (const item of page.data) {
+            if (interactors.length >= FB_GRAPH_MAX_ITEMS) break;
+            if (scan.scan_type === "like") {
+              if (item.id && item.name) interactors.push({ name: item.name, profile_url: "https://facebook.com/profile.php?id=" + item.id, fb_uid: String(item.id), post_url: "" });
+            } else if (scan.scan_type === "comment") {
+              if (item.from && item.from.id) interactors.push({ name: item.from.name || "", profile_url: "https://facebook.com/profile.php?id=" + item.from.id, fb_uid: String(item.from.id), post_url: "" });
+            } else {
+              // sharedposts: mỗi item là 1 bài share — id của item là link
+              // bài đã chia sẻ, dùng làm minh chứng khi ghi nhận.
+              if (item.from && item.from.id) interactors.push({ name: item.from.name || "", profile_url: "https://facebook.com/profile.php?id=" + item.from.id, fb_uid: String(item.from.id), post_url: item.id ? "https://www.facebook.com/" + item.id : "" });
+            }
+          }
+          next = page.paging && page.paging.next ? page.paging.next : null;
+          if (!next || pages >= FB_GRAPH_MAX_PAGES || interactors.length >= FB_GRAPH_MAX_ITEMS) break;
+          const r = await fbGraphFetchUrl(next);
+          if (!r.ok) return err(env, r.error, 422);
+          page = r.data; pages++;
+        }
+        if (!interactors.length) {
+          return json(env, { ok: true, source: "graph", total: 0, matched: 0, unmatched: 0, by_method: { uid: 0, url: 0, name: 0 },
+            note: "Graph API trả 0 người tương tác công khai cho bài này. Có thể bài chưa có share/like/comment công khai nào, hoặc Page token thiếu quyền pages_read_engagement." });
+        }
+        const stats = await fbIngestScan(env, scan, interactors, "graph");
+        await audit(env, uid, "fb_scan_ingest", "fb_scans:" + scan.id,
+          `Quét Graph API cho đợt #${scan.id} (${scan.scan_type}): ${stats.total} người, khớp ${stats.matched}, chưa khớp ${stats.unmatched}`,
+          null, stats);
+        return json(env, { ok: true, source: "graph", graph_post_id: resolved.id, ...stats });
+      }
+      // Ghi nhận: với mỗi dòng đã khớp chưa có minh chứng cho bài đích thì
+      // tạo share_submission source='fb_scan', first_check = kết quả xác
+      // minh link lúc ghi nhận (VALID -> verified, UNKNOWN -> pending).
+      // KHÔNG tự set FINAL_VALID — điểm chỉ tính khi chốt tháng. Dòng chưa
+      // có link bài thì BỎ QUA và báo rõ (không bịa URL minh chứng).
+      const fbApplyMatch = path.match(/^\/api\/admin\/fb-scans\/(\d+)\/apply$/);
+      if (fbApplyMatch && request.method === "POST") {
+        const scan = await env.DB.prepare("SELECT * FROM fb_scans WHERE id = ?").bind(fbApplyMatch[1]).first();
+        if (!scan) return err(env, "Không tìm thấy đợt quét", 404);
+        const b = await readBody(request);
+        const onlyIds = Array.isArray(b.result_ids) && b.result_ids.length ? new Set(b.result_ids.map(Number)) : null;
+        const targets = await fbScanTargetPosts(env, scan);
+        if (!targets.length) return err(env, scan.hashtag ? "Không có bài nào trong tháng " + scan.month + " dùng hashtag #" + scan.hashtag + " — tạo bài và nhập hashtag vào trường Hashtag của bài trước" : "Không tìm thấy bài đích của đợt quét", 422);
+        for (const p of targets) {
+          if (await monthLocked(env, p.month)) return err(env, "Tháng " + p.month + " đã khóa — không ghi nhận thêm được", 403);
+        }
+        const assignedSet = new Set();
+        {
+          const postIds = targets.map((p) => p.id);
+          const rows = (await env.DB.prepare(
+            `SELECT post_id, employee_id FROM assignments WHERE post_id IN (${postIds.map(() => "?").join(",")})`
+          ).bind(...postIds).all()).results || [];
+          for (const r of rows) assignedSet.add(r.post_id + ":" + r.employee_id);
+        }
+        const results = (await env.DB.prepare(
+          "SELECT * FROM fb_scan_results WHERE scan_id = ? AND status = 'matched' ORDER BY id"
+        ).bind(scan.id).all()).results || [];
+        let created = 0, skippedExisting = 0, skippedNoLink = 0, skippedNoTarget = 0;
+        const errors = [];
+        for (const r of results) {
+          if (onlyIds && !onlyIds.has(r.id)) continue;
+          if (!r.employee_id) continue;
+          const posts = scan.post_id ? targets : targets.filter((p) => assignedSet.has(p.id + ":" + r.employee_id));
+          if (!posts.length) { skippedNoTarget++; continue; }
+          for (const p of posts) {
+            const existing = await env.DB.prepare("SELECT id, first_check_status, last_check_status, final_check_status FROM share_submissions WHERE employee_id = ? AND post_id = ?")
+              .bind(r.employee_id, p.id).first();
+            if (existing) { skippedExisting++; continue; }
+            const submittedUrl = String(r.post_url || "").trim();
+            if (!submittedUrl) { skippedNoLink++; continue; }
+            const canon = canonicalizeShareUrl(submittedUrl);
+            if (!canon.ok) { errors.push("Dòng #" + r.id + " (" + (r.fb_name || r.fb_uid) + "): link bài không hợp lệ — " + (canon.message || "")); continue; }
+            const origin = canonicalizeShareUrl(p.post_url);
+            if (origin.ok && origin.canonical === canon.canonical) { errors.push("Dòng #" + r.id + " (" + (r.fb_name || r.fb_uid) + "): đây là link bài gốc, không phải link bài đã chia sẻ"); continue; }
+            const dup = await env.DB.prepare("SELECT id FROM share_submissions WHERE canonical_url = ?").bind(canon.canonical).first();
+            if (dup) { errors.push("Dòng #" + r.id + " (" + (r.fb_name || r.fb_uid) + "): link bài này đã được khai báo trước đó"); continue; }
+            const v = await verifyShareUrl(canon.canonical, canon.platform, canon.fb_post_id);
+            if (v.status === "NOT_FOUND" || v.status === "INVALID") { errors.push("Dòng #" + r.id + " (" + (r.fb_name || r.fb_uid) + "): " + (v.error_message || "link không tồn tại")); continue; }
+            const now = nowIso();
+            const curStatus = v.status === "VALID" ? "verified" : "pending";
+            const ins = await env.DB.prepare(
+              `INSERT INTO share_submissions (employee_id, post_id, submitted_url, canonical_url, submitted_at,
+                 first_check_status, first_checked_at, first_check_code, current_status,
+                 fb_post_id, fb_user_id, http_status, verification_method, error_message, source, fb_scan_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'fb_scan', ?)`
+            ).bind(r.employee_id, p.id, submittedUrl, canon.canonical, now,
+              v.status, now, v.error_code, curStatus,
+              canon.fb_post_id, canon.fb_user_id, v.http_status, v.verification_method, v.error_message, scan.id).run();
+            await env.DB.prepare(
+              "INSERT INTO link_check_history (submission_id, check_type, check_status, http_status, verification_method, error_code, error_message) VALUES (?, 'SUBMISSION', ?, ?, ?, ?, ?)"
+            ).bind(ins.meta.last_row_id, v.status, v.http_status, v.verification_method, v.error_code, v.error_message).run();
+            created++;
+          }
+        }
+        await audit(env, uid, "fb_scan_apply", "fb_scans:" + scan.id,
+          `Ghi nhận đợt #${scan.id}: tạo ${created} minh chứng (nguồn fb_scan, chờ xác minh), bỏ qua ${skippedExisting} đã có minh chứng / ${skippedNoLink} thiếu link bài / ${skippedNoTarget} không thuộc bài đích`,
+          null, { created, skipped_existing: skippedExisting, skipped_no_link: skippedNoLink, skipped_no_target: skippedNoTarget, errors: errors.length });
+        return json(env, { ok: true, created, skipped_existing: skippedExisting, skipped_no_link: skippedNoLink, skipped_no_target: skippedNoTarget, errors: errors.slice(0, 50),
+          message: created ? "Đã tạo " + created + " minh chứng (trạng thái Chờ xác minh — điểm chỉ tính khi chốt tháng)" : "Không tạo được minh chứng nào — xem lý do bỏ qua bên dưới" });
+      }
+      // Xuất CSV đợt quét: kết quả map + danh sách chưa chia sẻ.
+      const fbExportMatch = path.match(/^\/api\/admin\/fb-scans\/(\d+)\/export$/);
+      if (fbExportMatch && request.method === "GET") {
+        const scan = await env.DB.prepare(
+          `SELECT s.*, p.title AS post_title FROM fb_scans s LEFT JOIN posts p ON p.id = s.post_id WHERE s.id = ?`
+        ).bind(fbExportMatch[1]).first();
+        if (!scan) return err(env, "Không tìm thấy đợt quét", 404);
+        const unitId = url.searchParams.get("unit_id") || "";
+        const detail = await fbLoadScanDetail(env, scan, unitId, "all");
+        const lines = [];
+        lines.push(["Mã NV", "Họ tên", "Đơn vị", "Facebook UID", "Link profile", "Link bài chia sẻ", "Kết quả", "Cách khớp", "Tên Facebook"].map(fbCsvEscape).join(","));
+        for (const r of detail.results) {
+          lines.push([r.employee_code || "", r.employee_name || "", r.unit_name || "", r.fb_uid || "", r.fb_profile_url || "", r.post_url || "",
+            r.status === "matched" ? "Đã chia sẻ" : "Chưa map được",
+            r.matched_by === "uid" ? "UID" : r.matched_by === "url" ? "Link Facebook" : r.matched_by === "name" ? "Họ tên" : "",
+            r.fb_name || ""].map(fbCsvEscape).join(","));
+        }
+        for (const a of detail.not_shared) {
+          lines.push([a.code || "", a.full_name || "", a.unit_name || "", "", "", "", "Chưa chia sẻ", "", ""].map(fbCsvEscape).join(","));
+        }
+        const csv = "﻿" + lines.join("\r\n");
+        return new Response(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="fb-scan-' + scan.id + '.csv"', ...cors(env) } });
+      }
+      // Nhập/bổ sung link bài đã chia sẻ cho 1 dòng kết quả (dòng đã khớp
+      // nhưng chưa có link thì chưa ghi nhận được — nhập link rồi bấm Ghi nhận).
+      const fbLinkMatch = path.match(/^\/api\/admin\/fb-scans\/(\d+)\/results\/(\d+)\/link$/);
+      if (fbLinkMatch && request.method === "POST") {
+        const scan = await env.DB.prepare("SELECT * FROM fb_scans WHERE id = ?").bind(fbLinkMatch[1]).first();
+        if (!scan) return err(env, "Không tìm thấy đợt quét", 404);
+        const row = await env.DB.prepare("SELECT * FROM fb_scan_results WHERE id = ? AND scan_id = ?").bind(fbLinkMatch[2], scan.id).first();
+        if (!row) return err(env, "Không tìm thấy dòng kết quả", 404);
+        const b = await readBody(request);
+        const canon = canonicalizeShareUrl(String(b.post_url || "").trim());
+        if (!canon.ok) return err(env, "Link bài không hợp lệ: " + (canon.message || ""), 422);
+        await env.DB.prepare("UPDATE fb_scan_results SET post_url = ? WHERE id = ?").bind(String(b.post_url).trim(), row.id).run();
+        await audit(env, uid, "fb_scan_set_link", "fb_scans:" + scan.id, "Nhập link bài cho dòng kết quả #" + row.id + " (đợt #" + scan.id + ")", null, { result_id: row.id, post_url: String(b.post_url).trim() });
+        return json(env, { ok: true });
+      }
+      // Gán/sửa Facebook UID cho 1 CBCNV (1 UID/1 CBCNV, chặn trùng).
+      // Quyền quản lý nhân sự như sửa CBCNV (chỉ super_admin/sub_admin).
+      const fbUidMatch = path.match(/^\/api\/admin\/employees\/(\d+)\/facebook-uid$/);
+      if (fbUidMatch && request.method === "PUT") {
+        if (!canManagePersonnel(me)) return err(env, ERR_PERSONNEL_READONLY, 403);
+        const target = await env.DB.prepare("SELECT * FROM employees WHERE id = ?").bind(fbUidMatch[1]).first();
+        if (!target) return err(env, "Không tìm thấy CBCNV", 404);
+        const b = await readBody(request);
+        const raw = String(b.facebook_uid ?? "").trim();
+        let value = "";
+        if (raw) {
+          const key = fbExtractProfileKey(raw);
+          if (!key) return err(env, "UID không hợp lệ — nhập UID số (VD: 1000123456789), username, hoặc link Facebook cá nhân", 422);
+          value = key.value; // uid: số; username: viết thường
+        }
+        if (value) {
+          const dup = await env.DB.prepare("SELECT id, code, full_name FROM employees WHERE facebook_uid = ? COLLATE NOCASE AND id != ?")
+            .bind(value, target.id).first();
+          if (dup) return err(env, "UID này đã gắn với CBCNV " + dup.code + " — " + dup.full_name + " (1 UID chỉ gắn 1 CBCNV)", 409);
+        }
+        const before = { facebook_uid: target.facebook_uid || "" };
+        await env.DB.prepare("UPDATE employees SET facebook_uid = ?, updated_at = ? WHERE id = ?").bind(value, nowIso(), target.id).run();
+        await audit(env, uid, "set_facebook_uid", "employees:" + target.id,
+          "Gán Facebook UID cho CBCNV " + target.code + " — " + target.full_name, before, { facebook_uid: value });
+        return json(env, { ok: true, facebook_uid: value });
       }
       if (path === "/api/admin/stats" && request.method === "GET") {
         const counts = {};

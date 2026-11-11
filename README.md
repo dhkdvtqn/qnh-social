@@ -321,13 +321,67 @@ tính khi chốt tháng.
 qnh-social/
 ├── index.html      # Frontend tĩnh 1 file (mobile-first, SheetJS qua CDN)
 ├── config.js       # URL Worker qnh-social-api (để trống lúc đầu)
+├── fb-scan.js      # Hàm thuần Đối soát Facebook (dùng chung worker + web + test)
+├── test-fb-scan.mjs # Test Node thuần cho fb-scan.js (67 test, không cần D1)
 ├── worker.js       # Cloudflare Worker + D1 + FacebookVerifier + cron
-├── schema.sql      # D1 schema: 19 bảng + seed 10 đơn vị + settings
+├── schema.sql      # D1 schema: 21 bảng + seed 10 đơn vị + settings
 ├── wrangler.jsonc  # Worker qnh-social-api, D1 qnh-social-db, cron 2 ngày/lần
 ├── docs/
 │   └── huong-dan-su-dung.md  # Hướng dẫn sử dụng chi tiết (bản v11)
 └── README.md       # File này
 ```
+
+## Đợt 14 (11/11/2026, module "Đối soát Facebook" — kiểu FPlus "Tìm UID", V1)
+
+Panel admin riêng **🔍 Đối soát Facebook** (chỉ admin thấy), 3 bước giống
+FPlus: **B1** chọn bài đã giao trong tháng (hoặc dán link bài Fanpage) hay
+nhập hashtag (chế độ bài đăng trực tiếp) + tick loại Share/Like/Comment
+(mặc định chỉ Share để tính điểm); **B2** nạp danh sách người tương tác —
+dán tay (mỗi dòng 1 người: tên + link Facebook/UID, hoặc link bài đã chia
+sẻ) hoặc quét qua Graph API v25; **B3** bảng kết quả Đã khớp / Chưa map
+được / Chưa chia sẻ (lọc theo đơn vị), nút Ghi nhận (từng dòng + tất cả),
+Xuất CSV/Excel. Map 3 tầng ưu tiên: (a) `facebook_uid` khớp chính xác,
+(b) link Facebook chuẩn hóa khớp, (c) họ tên chuẩn hóa không dấu — chỉ khi
+duy nhất 1 CBCNV trùng tên; trùng tên thì không tự đoán, vào "Chưa map
+được" để admin gán UID tay (có ô gán UID trong panel + cột Facebook UID
+trong import CBCNV; 1 UID/1 CBCNV, chặn trùng 409 + UNIQUE index).
+Ghi nhận: mỗi dòng đã khớp mà chưa có minh chứng cho bài đích thì tạo
+`share_submission` với `source='fb_scan'`, trạng thái Chờ xác minh —
+**KHÔNG tự set FINAL_VALID**, điểm chỉ tính khi chốt tháng (giữ đúng luồng
+xác thực 2 lớp). Dòng đã khớp nhưng chưa có link bài thì **không tạo** minh
+chứng (không bịa URL) mà báo "thiếu link bài" — admin nhập link bài vào
+từng dòng rồi ghi nhận. API mới (đều trong khối `/api/admin/`, cần quyền
+admin): `POST/GET /api/admin/fb-scans`, `GET/DELETE /api/admin/fb-scans/:id`,
+`POST /api/admin/fb-scans/:id/ingest` (paste/graph),
+`POST /api/admin/fb-scans/:id/apply`, `GET .../export` (CSV),
+`POST .../results/:rid/link`, `PUT /api/admin/employees/:id/facebook-uid`
+(chỉ super_admin/sub_admin). Schema mới: `employees.facebook_uid`,
+`fb_scans`, `fb_scan_results`, `share_submissions.source` + `fb_scan_id`
+(migration trong `ensureFbScanSchema`, D1 cũ không mất dữ liệu).
+**Giới hạn thật (ghi rõ trong UI, không hứa điều Meta đã chặn):** không còn
+UID toàn cục (Graph API chỉ trả app/page-scoped ID — map UID chỉ khớp khi
+UID được ghi từ cùng app/page); không tìm bài theo hashtag qua API (bỏ từ
+v2.0 — chế độ hashtag chỉ dán link bài, hệ thống trích tác giả từng link);
+chỉ share/like/comment công khai mới thấy; không scrape facebook.com bằng
+token kiểu tool cũ; Page token (nếu có) chỉ nằm trong secret Worker, không
+bao giờ ra frontend. Chế độ Graph API cần `FB_PAGE_TOKEN` (secret:
+`npx wrangler secret put FB_PAGE_TOKEN`) + `FB_PAGE_ID` (var, để đổi link
+bài dạng số sang Graph post ID); link pfbid không đổi được sang Graph post
+ID — nhập Graph post ID dạng `<page_id>_<post_id>` khi tạo đợt quét hoặc
+dùng chế độ dán danh sách (chạy ngay, không cần token). File
+`fb-scan.js` là nguồn duy nhất của logic thuần (worker.js copy nguyên văn
+khối giữa 2 marker; test kiểm tra parity). **Đợt này CÓ thay đổi
+`worker.js` + schema** — cần: (a) đẩy `index.html` + `worker.js` +
+`fb-scan.js` + `schema.sql` + `README.md` mới lên GitHub; (b) **dán lại
+`worker.js` mới lên Cloudflare** thì API mới có hiệu lực; (c) D1 cũ tự
+migrate khi Worker chạy (không cần chạy lại schema — nhưng D1 mới thì chạy
+`schema.sql` đã có đủ bảng); (d) kiểm tra `/api/health` trả
+`database: "ok"` **và** `"version":"v14"`. Sau đó kiểm tra thử 1 vòng: mở
+panel Đối soát Facebook → tạo đợt quét cho 1 bài tháng 11 → dán 2–3 dòng
+(tên + link Facebook) → bấm Map và đối soát → ghi nhận 1 dòng có link bài
+→ minh chứng mới ở trạng thái Chờ xác minh, chưa tính điểm. Kiểm tra bằng
+harness: `node test-fb-scan.mjs` — **67/67 PASS** (trích UID/username,
+paste-parser, map 3 tầng, tác giả hashtag, parity worker, schema).
 
 ## Chưa làm / cần anh Tuấn quyết định
 

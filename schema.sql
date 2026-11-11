@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS employees (
   email TEXT DEFAULT '',
   phone TEXT DEFAULT '',
   facebook_url TEXT DEFAULT '',
+  facebook_uid TEXT DEFAULT '',           -- UID/username Facebook để map đối soát (1 UID/1 CBCNV)
   status TEXT NOT NULL DEFAULT 'working' CHECK (status IN ('working','left')),
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
@@ -218,6 +219,8 @@ CREATE TABLE IF NOT EXISTS share_submissions (
   verification_method TEXT,
   error_message TEXT,
   manual_reason TEXT,
+  source TEXT NOT NULL DEFAULT 'self',      -- 'self' = CBCNV tự khai báo | 'fb_scan' = tạo từ Đối soát Facebook
+  fb_scan_id INTEGER REFERENCES fb_scans(id) ON DELETE SET NULL,
   manual_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -358,6 +361,53 @@ CREATE TABLE IF NOT EXISTS imports (
   skipped_rows INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+
+-- 20) Đối soát Facebook (v14) -----------------------------------------------------
+-- fb_scans: 1 đợt quét cho 1 bài Fanpage (share/like/comment) hoặc 1 hashtag.
+--   post_id: bài đã giao trong hệ thống (NULL nếu dán link ngoài / hashtag).
+--   post_url: link bài Fanpage dán tay (khi không chọn bài có sẵn).
+--   hashtag: không có # ở đầu (VD: LoveVNPT). scan_type: share/like/comment.
+--   source: paste (dán danh sách — chạy ngay, không cần token) | graph
+--     (quét qua Graph API bằng FB_PAGE_TOKEN).
+--   graph_post_id: Graph post ID dạng <page_id>_<post_id> (tùy chọn, dùng
+--     khi link bài dạng pfbid không đổi được sang Graph post ID).
+-- fb_scan_results: từng người tương tác đã map (matched_by: uid/url/name)
+--   hoặc chưa map được (status='unmatched', reason=no_match/ambiguous_name/
+--   no_key). post_url: link bài đã chia sẻ của người đó (nếu có) — dùng
+--   làm minh chứng khi ghi nhận; không có thì ghi nhận bị chặn lại.
+CREATE TABLE IF NOT EXISTS fb_scans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id INTEGER REFERENCES posts(id) ON DELETE SET NULL,
+  post_url TEXT NOT NULL DEFAULT '',
+  hashtag TEXT NOT NULL DEFAULT '',
+  scan_type TEXT NOT NULL DEFAULT 'share' CHECK (scan_type IN ('share','like','comment')),
+  source TEXT NOT NULL DEFAULT 'paste' CHECK (source IN ('graph','paste')),
+  month TEXT NOT NULL,
+  graph_post_id TEXT NOT NULL DEFAULT '',
+  title TEXT NOT NULL DEFAULT '',
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  raw_count INTEGER NOT NULL DEFAULT 0,
+  matched_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_fbscan_post ON fb_scans(post_id);
+CREATE TABLE IF NOT EXISTS fb_scan_results (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  scan_id INTEGER NOT NULL REFERENCES fb_scans(id) ON DELETE CASCADE,
+  employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  fb_uid TEXT NOT NULL DEFAULT '',
+  fb_name TEXT NOT NULL DEFAULT '',
+  fb_profile_url TEXT NOT NULL DEFAULT '',
+  post_url TEXT NOT NULL DEFAULT '',
+  matched_by TEXT CHECK (matched_by IN ('uid','url','name')),
+  status TEXT NOT NULL DEFAULT 'unmatched' CHECK (status IN ('matched','unmatched')),
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_fbresult_scan ON fb_scan_results(scan_id);
+CREATE INDEX IF NOT EXISTS idx_fbresult_emp ON fb_scan_results(employee_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_emp_fb_uid ON employees(facebook_uid) WHERE facebook_uid IS NOT NULL AND facebook_uid != '';
 
 -- ============================================================================
 -- SEED ĐƠN VỊ (thứ tự cố định; gốc cây VNPT Quảng Ninh id=1, ẩn khỏi bảng)
